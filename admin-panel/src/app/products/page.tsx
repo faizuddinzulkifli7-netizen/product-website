@@ -6,7 +6,7 @@ import { Product } from '@/types';
 import { PageHeader, PageLayout, FilterBar, Card } from '@/components/layout';
 import { Button, Modal } from '@/components/ui';
 import { StatusBadge } from '@/components/table';
-import { ProductForm } from '@/components/features/products/ProductForm';
+import { ProductForm } from '@/components/features/products';
 import Link from 'next/link';
 
 export default function ProductsPage() {
