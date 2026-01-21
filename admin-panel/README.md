@@ -1,36 +1,122 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Admin Panel - Internal Management System
+
+A secure, role-based internal interface for administrators and managers to operate the business.
+
+## Features
+
+### 🔐 Authentication & Authorization
+- Secure login system
+- Role-based access control (Admin/Manager)
+- Session management
+
+### 📊 Dashboard
+- Key metrics: Total Sales, Orders, Pending Orders, Active Products
+- Sales by month visualization
+- Orders by status breakdown
+- Recent orders overview
+
+### 📦 Product Management
+- Create, update, and delete products
+- Activate/deactivate products
+- Control product visibility on frontend
+- Manage pricing and stock levels
+- Extended product information (specifications, usage, storage, warnings)
+
+### 🛒 Order Management
+- View all orders with filtering
+- Update order status (pending, processing, shipped, delivered, cancelled)
+- Monitor payment statuses from B2BINPAY
+- Handle order fulfillment
+- View detailed order information
+
+### 👥 User Management
+- Create and manage admin users
+- Assign roles (Admin/Manager)
+- Activate/deactivate users
+- View user activity
+
+### ⭐ Review Moderation
+- View all customer reviews
+- Approve/reject/pending review status
+- Delete reviews
+- Filter by status
+
+### 📝 Activity Logs
+- Track all administrative actions
+- Filter by entity type (product, order, user, review, system)
+- View detailed action history with timestamps
 
 ## Getting Started
 
-First, run the development server:
+### Installation
+
+```bash
+npm install
+```
+
+### Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The admin panel will be available at `http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Login Credentials
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Demo Account:**
+- Email: `admin@example.com`
+- Password: Any password (for demo purposes)
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+admin-panel/
+├── src/
+│   ├── app/              # Next.js app router pages
+│   │   ├── login/        # Login page
+│   │   ├── products/     # Product management
+│   │   ├── orders/       # Order management
+│   │   ├── users/        # User management
+│   │   ├── reviews/      # Review moderation
+│   │   └── logs/         # Activity logs
+│   ├── components/       # React components
+│   │   └── layout/       # Layout components
+│   ├── contexts/         # React contexts
+│   │   └── AuthContext.tsx
+│   ├── lib/              # Utilities and APIs
+│   │   └── mockApi.ts    # Mock API implementation
+│   └── types/            # TypeScript types
+│       └── index.ts
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Mock API
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Currently, the admin panel uses a mock API (`src/lib/mockApi.ts`) that simulates backend functionality. This includes:
 
-## Deploy on Vercel
+- In-memory data storage
+- Simulated network delays
+- Activity logging
+- All CRUD operations
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+When the backend is ready, replace the mock API calls with actual API endpoints.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Security Features
+
+- Authentication required for all pages
+- Role-based access control
+- Activity logging for accountability
+- Secure session management
+
+## Technologies
+
+- **Next.js 16** - React framework
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Styling
+- **React Context** - State management
+
+## Notes
+
+- All data is stored in memory and will reset on page refresh
+- The mock API simulates network delays for realistic behavior
+- Activity logs are automatically generated for all administrative actions
