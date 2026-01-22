@@ -24,13 +24,36 @@ import * as entities from './entities';
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'sqlite',
-        database: configService.get<string>('DATABASE_PATH') || 'database.sqlite',
-        entities: Object.values(entities),
-        synchronize: configService.get<string>('NODE_ENV') !== 'production',
-        logging: configService.get<string>('NODE_ENV') === 'development',
-      }),
+      useFactory: (configService: ConfigService) => {
+        // Support both connection URL and individual parameters
+        const databaseUrl = configService.get<string>('DATABASE_URL');
+        
+        if (databaseUrl) {
+          // Use connection URL if provided
+          return {
+            type: 'postgres',
+            url: databaseUrl,
+            entities: Object.values(entities),
+            synchronize: configService.get<string>('NODE_ENV') !== 'production',
+            logging: configService.get<string>('NODE_ENV') === 'development',
+            ssl: configService.get<string>('DB_SSL') === 'true' ? { rejectUnauthorized: false } : false,
+          };
+        }
+        
+        // Use individual parameters
+        return {
+          type: 'postgres',
+          host: configService.get<string>('DB_HOST') || 'localhost',
+          port: configService.get<number>('DB_PORT') || 5432,
+          username: configService.get<string>('DB_USERNAME') || 'postgres',
+          password: configService.get<string>('DB_PASSWORD') || 'postgres',
+          database: configService.get<string>('DB_NAME') || 'product_website',
+          entities: Object.values(entities),
+          synchronize: configService.get<string>('NODE_ENV') !== 'production',
+          logging: configService.get<string>('NODE_ENV') === 'development',
+          ssl: configService.get<string>('DB_SSL') === 'true' ? { rejectUnauthorized: false } : false,
+        };
+      },
       inject: [ConfigService],
     }),
     ThrottlerModule.forRoot([

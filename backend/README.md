@@ -30,7 +30,8 @@ cp .env.example .env
 
 Update the following variables:
 - `JWT_SECRET`: Secret key for JWT tokens
-- `DATABASE_PATH`: Path to SQLite database file
+- `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`: PostgreSQL database credentials
+  - Or use `DATABASE_URL` for connection string format: `postgresql://username:password@host:port/database`
 - `FRONTEND_URL`: Frontend application URL
 - `ADMIN_PANEL_URL`: Admin panel URL
 - `B2BINPAY_*`: B2BINPAY API credentials
@@ -119,9 +120,52 @@ npm run start:prod
 
 ## Database
 
-The application uses SQLite by default (can be changed to PostgreSQL/MySQL in TypeORM configuration).
+The application uses PostgreSQL. Make sure PostgreSQL is installed and running.
 
-Database schema is automatically synchronized in development mode.
+### Setup PostgreSQL Database
+
+1. **Install PostgreSQL** (if not already installed):
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get install postgresql postgresql-contrib
+   
+   # macOS (using Homebrew)
+   brew install postgresql
+   brew services start postgresql
+   ```
+
+2. **Create Database**:
+   ```bash
+   # Connect to PostgreSQL
+   sudo -u postgres psql
+   
+   # Create database and user
+   CREATE DATABASE product_website;
+   CREATE USER your_username WITH PASSWORD 'your_password';
+   GRANT ALL PRIVILEGES ON DATABASE product_website TO your_username;
+   \q
+   ```
+
+3. **Configure `.env`**:
+   ```env
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_USERNAME=your_username
+   DB_PASSWORD=your_password
+   DB_NAME=product_website
+   ```
+
+   Or use connection URL:
+   ```env
+   DATABASE_URL=postgresql://your_username:your_password@localhost:5432/product_website
+   ```
+
+4. **Run Migrations/Seed**:
+   ```bash
+   npm run seed
+   ```
+
+Database schema is automatically synchronized in development mode (`synchronize: true`). In production, use proper migrations.
 
 ## License
 
