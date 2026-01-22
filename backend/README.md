@@ -1,98 +1,128 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Product Website Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend API for the product website, built with NestJS.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- **Authentication**: JWT-based authentication for customers and admin users
+- **Products Management**: CRUD operations for products with stock management
+- **Shopping Cart**: Cart management for authenticated users and guests
+- **Orders**: Order creation, status management, and payment integration
+- **Reviews**: Product review system with moderation
+- **Admin Panel**: Dashboard metrics, activity logs, and admin operations
+- **Payment Integration**: B2BINPAY On-Ramp payment gateway integration
+- **Webhooks**: Payment webhook handling for payment verification
+- **Security**: Rate limiting, CORS, input validation, JWT authentication
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Installation
 
 ```bash
-$ npm install
+npm install
 ```
 
-## Compile and run the project
+## Configuration
+
+Copy `.env.example` to `.env` and configure:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+cp .env.example .env
 ```
 
-## Run tests
+Update the following variables:
+- `JWT_SECRET`: Secret key for JWT tokens
+- `DATABASE_PATH`: Path to SQLite database file
+- `FRONTEND_URL`: Frontend application URL
+- `ADMIN_PANEL_URL`: Admin panel URL
+- `B2BINPAY_*`: B2BINPAY API credentials
+
+## Running the Application
 
 ```bash
-# unit tests
-$ npm run test
+# Development
+npm run start:dev
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+# Production
+npm run build
+npm run start:prod
 ```
 
-## Deployment
+## API Endpoints
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Authentication
+- `POST /api/auth/signup` - Customer sign up
+- `POST /api/auth/signin` - Customer sign in
+- `GET /api/auth/me` - Get current user
+- `POST /api/admin/auth/login` - Admin login
+- `GET /api/admin/auth/me` - Get current admin
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Products
+- `GET /api/products` - Get all products
+- `GET /api/products/visible` - Get visible products
+- `GET /api/products/:id` - Get product by ID
+- `POST /api/products` - Create product (Admin)
+- `PATCH /api/products/:id` - Update product (Admin)
+- `DELETE /api/products/:id` - Delete product (Admin)
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+### Cart
+- `GET /api/cart` - Get cart
+- `POST /api/cart/add` - Add item to cart
+- `PATCH /api/cart/items/:productId` - Update cart item
+- `DELETE /api/cart/items/:productId` - Remove item from cart
+- `DELETE /api/cart/clear` - Clear cart
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Orders
+- `POST /api/orders/checkout` - Create order and initiate payment
+- `GET /api/orders` - Get orders
+- `GET /api/orders/:id` - Get order by ID
+- `PATCH /api/orders/:id/status` - Update order status (Admin)
+- `PATCH /api/orders/:id/payment-status` - Update payment status (Admin)
 
-## Resources
+### Reviews
+- `GET /api/reviews` - Get approved reviews
+- `GET /api/reviews?productId=:id` - Get reviews for product
+- `POST /api/reviews` - Create review
+- `GET /api/reviews/admin` - Get all reviews (Admin)
+- `PATCH /api/reviews/:id/status` - Update review status (Admin)
+- `DELETE /api/reviews/:id` - Delete review (Admin)
 
-Check out a few resources that may come in handy when working with NestJS:
+### Admin
+- `GET /api/admin/dashboard` - Get dashboard metrics
+- `GET /api/admin/logs` - Get activity logs
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Webhooks
+- `POST /api/webhooks/b2binpay` - B2BINPAY payment webhook
 
-## Support
+## Order States
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+- `created` - Order created, awaiting payment
+- `pending` - Payment received, order pending
+- `processing` - Order being processed
+- `shipped` - Order shipped
+- `delivered` - Order delivered
+- `cancelled` - Order cancelled
 
-## Stay in touch
+## Payment States
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+- `pending` - Payment pending
+- `paid` - Payment completed
+- `failed` - Payment failed
+- `refunded` - Payment refunded
+
+## Security
+
+- JWT authentication for protected routes
+- Role-based access control (Admin/Manager/Customer)
+- Rate limiting (100 requests per minute)
+- Input validation with class-validator
+- CORS enabled for frontend and admin panel
+- Password hashing with bcrypt
+
+## Database
+
+The application uses SQLite by default (can be changed to PostgreSQL/MySQL in TypeORM configuration).
+
+Database schema is automatically synchronized in development mode.
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Private

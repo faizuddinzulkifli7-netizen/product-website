@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuthRedirect, useDataLoader } from '@/hooks';
 import { adminApi } from '@/lib/mockApi';
 import { ActivityLog } from '@/types';
@@ -10,8 +10,9 @@ import { StatusBadge } from '@/components/table';
 
 export default function LogsPage() {
   const { user } = useAuthRedirect();
+  const loadLogs = useMemo(() => () => adminApi.getActivityLogs(500), []);
   const { data: logs, loading } = useDataLoader<ActivityLog[]>({
-    loadFn: () => adminApi.getActivityLogs(500),
+    loadFn: loadLogs,
     enabled: !!user,
   });
   const [filterEntity, setFilterEntity] = useState<string>('all');
