@@ -1,0 +1,24 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.next/
+out/
+build/
+
+# SQLite databases
+*.sqlite
+backend/data/
+
+# Logs
+*-debug.log*
+npm-debug.log*
+
+# OS
+.DS_Store
