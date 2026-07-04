@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  UseGuards,
+  Request,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignInDto, AuthResponseDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -24,7 +32,11 @@ export class AdminAuthController {
   @UseGuards(JwtAuthGuard)
   async getMe(@Request() req: any) {
     const user = await this.authService.validateUser(req.user.id);
-    
+
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
     if (user.role !== UserRole.ADMIN && user.role !== UserRole.MANAGER) {
       throw new Error('Access denied. Admin access required.');
     }

@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  UseGuards,
+  Request,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignUpDto, SignInDto, AuthResponseDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -21,6 +29,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async getMe(@Request() req: any) {
     const user = await this.authService.validateUser(req.user.id);
+    if (!user) {
+      throw new UnauthorizedException();
+    }
     return {
       id: user.id,
       email: user.email,

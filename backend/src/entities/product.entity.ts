@@ -46,7 +46,7 @@ export class Product {
   isVisible: boolean;
 
   @Column('text', { nullable: true })
-  specifications: string; // JSON string
+  specifications: string | null; // JSON string
 
   @Column('text', { nullable: true })
   usage: string;
@@ -55,7 +55,7 @@ export class Product {
   storage: string;
 
   @Column('text', { nullable: true })
-  warnings: string; // JSON string
+  warnings: string | null; // JSON string
 
   @CreateDateColumn()
   createdAt: Date;

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus, PaymentStatus } from '../entities/order.entity';
@@ -6,7 +11,8 @@ import { OrderItem } from '../entities/order-item.entity';
 import { Cart } from '../entities/cart.entity';
 import { Product } from '../entities/product.entity';
 import { CheckoutDto, UpdateOrderStatusDto, UpdatePaymentStatusDto } from './dto/order.dto';
-import { B2BinPayService } from '../payment/b2binpay.service';
+import { PAYMENT_GATEWAY } from '../payment/payment-gateway.interface';
+import type { PaymentGateway } from '../payment/payment-gateway.interface';
 import { ProductsService } from '../products/products.service';
 
 @Injectable()
@@ -20,7 +26,8 @@ export class OrdersService {
     private cartRepository: Repository<Cart>,
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
-    private b2BinPayService: B2BinPayService,
+    @Inject(PAYMENT_GATEWAY)
+    private paymentGateway: PaymentGateway,
     private productsService: ProductsService,
   ) {}
 
@@ -86,13 +93,13 @@ export class OrdersService {
       total,
       status: OrderStatus.CREATED,
       paymentStatus: PaymentStatus.PENDING,
-      paymentMethod: 'B2BINPAY',
+      paymentMethod: 'STRIPE',
     });
 
     const savedOrder = await this.ordersRepository.save(order);
 
     // Create payment request
-    const { paymentUrl, requestId } = await this.b2BinPayService.createPaymentRequest(
+    const { paymentUrl, requestId } = await this.paymentGateway.createPaymentRequest(
       savedOrder.id,
       total,
       'USD',

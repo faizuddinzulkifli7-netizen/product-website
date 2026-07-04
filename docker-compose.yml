@@ -1,0 +1,56 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    image: peptide-backend
+    container_name: peptide-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_PATH: /app/data/database.sqlite
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      ADMIN_PANEL_URL: ${ADMIN_PANEL_URL:-http://localhost:3002}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      B2BINPAY_API_URL: ${B2BINPAY_API_URL:-https://api.b2binpay.com}
+      B2BINPAY_API_KEY: ${B2BINPAY_API_KEY:-}
+      B2BINPAY_API_SECRET: ${B2BINPAY_API_SECRET:-}
+      B2BINPAY_WALLET_ID: ${B2BINPAY_WALLET_ID:-}
+    ports:
+      - "3000:3000"
+    volumes:
+      - backend-data:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+    image: peptide-frontend
+    container_name: peptide-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      - backend
+
+  admin-panel:
+    build:
+      context: ./admin-panel
+    image: peptide-admin-panel
+    container_name: peptide-admin-panel
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+    ports:
+      - "3002:3002"
+    depends_on:
+      - backend
+
+volumes:
+  backend-data:

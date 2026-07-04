@@ -1,37 +1,51 @@
-import { Controller, Post, Body, Headers, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Req,
+  BadRequestException,
+} from '@nestjs/common';
+import type { RawBodyRequest } from '@nestjs/common';
+import type { Request } from 'express';
 import { OrdersService } from '../orders/orders.service';
-import { B2BinPayService } from '../payment/b2binpay.service';
+import { PAYMENT_GATEWAY } from '../payment/payment-gateway.interface';
+import type { PaymentGateway } from '../payment/payment-gateway.interface';
 
 @Controller('webhooks')
 export class WebhooksController {
   constructor(
     private ordersService: OrdersService,
-    private b2BinPayService: B2BinPayService,
+    @Inject(PAYMENT_GATEWAY) private paymentGateway: PaymentGateway,
   ) {}
 
-  @Post('b2binpay')
+  @Post('stripe')
   @HttpCode(HttpStatus.OK)
-  async handleB2BinPayWebhook(@Body() payload: any, @Headers('x-signature') signature: string) {
-    // Verify webhook signature
-    const isValid = await this.b2BinPayService.verifyWebhook(signature, payload);
-    
-    if (!isValid) {
-      throw new Error('Invalid webhook signature');
+  async handleStripeWebhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('stripe-signature') signature: string,
+  ) {
+    if (!req.rawBody) {
+      throw new BadRequestException(
+        'Missing raw body for signature verification',
+      );
     }
 
-    // Extract order information from webhook payload
-    const orderId = payload.order_id || payload.orderId;
-    const transactionId = payload.transaction_id || payload.id;
-    const status = payload.status || payload.payment_status;
+    const event = await this.paymentGateway.parseWebhook(req.rawBody, signature);
 
-    if (!orderId || !status) {
-      return { received: true, message: 'Missing required fields' };
+    // Unhandled/unactionable events still get a 200 so Stripe stops retrying.
+    if (!event || !event.orderId) {
+      return { received: true };
     }
 
-    // Update order payment status
-    await this.ordersService.handlePaymentWebhook(orderId, transactionId, status);
+    await this.ordersService.handlePaymentWebhook(
+      event.orderId,
+      event.transactionId || '',
+      event.status,
+    );
 
     return { received: true, processed: true };
   }
 }
-
