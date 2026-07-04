@@ -13,6 +13,8 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
       ADMIN_PANEL_URL: ${ADMIN_PANEL_URL:-http://localhost:3002}
       APP_URL: ${APP_URL:-http://localhost:3000}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       B2BINPAY_API_URL: ${B2BINPAY_API_URL:-https://api.b2binpay.com}
       B2BINPAY_API_KEY: ${B2BINPAY_API_KEY:-}
       B2BINPAY_API_SECRET: ${B2BINPAY_API_SECRET:-}

@@ -27,7 +27,9 @@ import * as entities from './entities';
       useFactory: (configService: ConfigService) => ({
         type: 'sqlite',
         database: configService.get<string>('DATABASE_PATH') || 'database.sqlite',
-        entities: Object.values(entities),
+        entities: Object.values(entities).filter(
+          (e): e is new (...args: any[]) => any => typeof e === 'function',
+        ),
         synchronize: configService.get<string>('NODE_ENV') !== 'production',
         logging: configService.get<string>('NODE_ENV') === 'development',
       }),
