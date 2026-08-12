@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Product, Review } from '@/types';
-import { mockApi } from '@/lib/mockApi';
+import { api } from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
 import ReviewCard from '@/components/ReviewCard';
 import Container from '@/components/layout/Container';
@@ -30,13 +30,14 @@ export default function ProductDetailPage() {
     const loadData = async () => {
       try {
         const [productData, reviewsData] = await Promise.all([
-          mockApi.getProduct(productId),
-          mockApi.getProductReviews(productId)
+          api.getProduct(productId),
+          api.getProductReviews(productId)
         ]);
         setProduct(productData);
         setReviews(reviewsData);
       } catch (error) {
         console.error('Error loading product:', error);
+        setProduct(null);
       } finally {
         setLoading(false);
       }

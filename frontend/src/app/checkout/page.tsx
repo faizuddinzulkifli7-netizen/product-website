@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { CheckoutData } from '@/types';
-import { mockApi } from '@/lib/mockApi';
+import { api } from '@/lib/api';
 import Container from '@/components/layout/Container';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -23,7 +22,6 @@ const countryOptions = [
 ];
 
 export default function CheckoutPage() {
-  const router = useRouter();
   const { cart, getTotalPrice, clearCart } = useCart();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -60,22 +58,21 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      const guestId = localStorage.getItem('guestId') || undefined;
-      
-      const response = await mockApi.initiateCheckout(
-        formData,
-        user?.id,
-        guestId
-      );
+      const guestId = localStorage.getItem('guestId');
+      if (!guestId) {
+        throw new Error('Missing cart session, please refresh and try again');
+      }
+
+      const response = await api.checkout(formData, guestId);
 
       if (response.paymentUrl) {
-        alert('Redirecting to payment gateway...\n\nIn production, this would redirect to B2BINPAY On-Ramp payment gateway.');
         await clearCart();
-        router.push('/checkout/success');
+        // Send the customer to BTCPay's hosted invoice to pay; BTCPay redirects
+        // back to /checkout/success once the payment settles.
+        window.location.href = response.paymentUrl;
       }
     } catch (err: any) {
       setError(err.message || 'Failed to process checkout');
-    } finally {
       setLoading(false);
     }
   };

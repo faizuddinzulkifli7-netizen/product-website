@@ -13,8 +13,10 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
       ADMIN_PANEL_URL: ${ADMIN_PANEL_URL:-http://localhost:3002}
       APP_URL: ${APP_URL:-http://localhost:3000}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      BTCPAY_URL: ${BTCPAY_URL:-}
+      BTCPAY_API_KEY: ${BTCPAY_API_KEY:-}
+      BTCPAY_STORE_ID: ${BTCPAY_STORE_ID:-}
+      BTCPAY_WEBHOOK_SECRET: ${BTCPAY_WEBHOOK_SECRET:-}
       B2BINPAY_API_URL: ${B2BINPAY_API_URL:-https://api.b2binpay.com}
       B2BINPAY_API_KEY: ${B2BINPAY_API_KEY:-}
       B2BINPAY_API_SECRET: ${B2BINPAY_API_SECRET:-}
@@ -27,6 +29,8 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${APP_URL:-http://localhost:3000}/api
     image: peptide-frontend
     container_name: peptide-frontend
     restart: unless-stopped

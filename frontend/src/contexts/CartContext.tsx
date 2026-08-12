@@ -1,9 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Cart, CartItem, Product } from '@/types';
-import { mockApi, generateGuestId } from '@/lib/mockApi';
-import { useAuth } from './AuthContext';
+import { Cart, Product } from '@/types';
+import { api, generateGuestId } from '@/lib/api';
 
 interface CartContextType {
   cart: Cart;
@@ -19,7 +18,6 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
   const [cart, setCart] = useState<Cart>({ items: [] });
   const [loading, setLoading] = useState(true);
   const [guestId, setGuestId] = useState<string | null>(null);
@@ -35,13 +33,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    loadCart();
-  }, [user, guestId]);
+    if (guestId) {
+      loadCart();
+    }
+  }, [guestId]);
 
   const loadCart = async () => {
+    if (!guestId) return;
     try {
       setLoading(true);
-      const cartData = await mockApi.getCart(user?.id, guestId || undefined);
+      const cartData = await api.getCart(guestId);
       setCart(cartData);
     } catch (error) {
       console.error('Error loading cart:', error);
@@ -51,13 +52,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addToCart = async (product: Product, quantity: number) => {
+    if (!guestId) return;
     try {
-      const updatedCart = await mockApi.addToCart(
-        product.id,
-        quantity,
-        user?.id,
-        guestId || undefined
-      );
+      const updatedCart = await api.addToCart(product.id, quantity, guestId);
       setCart(updatedCart);
     } catch (error) {
       console.error('Error adding to cart:', error);
@@ -66,13 +63,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateQuantity = async (productId: string, quantity: number) => {
+    if (!guestId) return;
     try {
-      const updatedCart = await mockApi.updateCartItem(
-        productId,
-        quantity,
-        user?.id,
-        guestId || undefined
-      );
+      const updatedCart = await api.updateCartItem(productId, quantity, guestId);
       setCart(updatedCart);
     } catch (error) {
       console.error('Error updating cart:', error);
@@ -81,12 +74,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeFromCart = async (productId: string) => {
+    if (!guestId) return;
     try {
-      const updatedCart = await mockApi.removeFromCart(
-        productId,
-        user?.id,
-        guestId || undefined
-      );
+      const updatedCart = await api.removeFromCart(productId, guestId);
       setCart(updatedCart);
     } catch (error) {
       console.error('Error removing from cart:', error);
@@ -95,8 +85,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearCart = async () => {
+    if (!guestId) return;
     try {
-      await mockApi.clearCart(user?.id, guestId || undefined);
+      await api.clearCart(guestId);
       setCart({ items: [] });
     } catch (error) {
       console.error('Error clearing cart:', error);

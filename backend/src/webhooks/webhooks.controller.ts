@@ -4,28 +4,26 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
-  Inject,
   Req,
   BadRequestException,
 } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { OrdersService } from '../orders/orders.service';
-import { PAYMENT_GATEWAY } from '../payment/payment-gateway.interface';
-import type { PaymentGateway } from '../payment/payment-gateway.interface';
+import { BTCPayService } from '../payment/btcpay.service';
 
 @Controller('webhooks')
 export class WebhooksController {
   constructor(
     private ordersService: OrdersService,
-    @Inject(PAYMENT_GATEWAY) private paymentGateway: PaymentGateway,
+    private btcPayService: BTCPayService,
   ) {}
 
-  @Post('stripe')
+  @Post('btcpay')
   @HttpCode(HttpStatus.OK)
-  async handleStripeWebhook(
+  async handleBTCPayWebhook(
     @Req() req: RawBodyRequest<Request>,
-    @Headers('stripe-signature') signature: string,
+    @Headers('btcpay-sig') signature: string,
   ) {
     if (!req.rawBody) {
       throw new BadRequestException(
@@ -33,9 +31,9 @@ export class WebhooksController {
       );
     }
 
-    const event = await this.paymentGateway.parseWebhook(req.rawBody, signature);
+    const event = await this.btcPayService.parseWebhook(req.rawBody, signature);
 
-    // Unhandled/unactionable events still get a 200 so Stripe stops retrying.
+    // Unhandled/unactionable events still get a 200 so BTCPay stops retrying.
     if (!event || !event.orderId) {
       return { received: true };
     }

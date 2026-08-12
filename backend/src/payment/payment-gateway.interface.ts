@@ -1,7 +1,7 @@
 /**
- * Common contract every payment gateway (Stripe, B2BinPay, NOWPayments, ...)
- * implements, so the rest of the app never depends on a specific provider.
- * Swap providers by rebinding the PAYMENT_GATEWAY token in PaymentModule.
+ * Common contract every payment gateway (BTCPay, B2BinPay, ...) implements,
+ * so the rest of the app never depends on a specific provider. Swap
+ * providers by rebinding the PAYMENT_GATEWAY token in PaymentModule.
  */
 export const PAYMENT_GATEWAY = 'PAYMENT_GATEWAY';
 

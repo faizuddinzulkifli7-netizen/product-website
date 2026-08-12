@@ -31,7 +31,7 @@ export default function CartItem({ item }: CartItemProps) {
         <ProductImage product={item.product} size="sm" showLink={true} />
         
         <div className="flex-1">
-          <ProductInfo product={item.product} showPrice={true} />
+          <ProductInfo product={item.product} showDescription={false} showPrice={true} />
         </div>
         
         <div className="flex flex-col items-end space-y-2">

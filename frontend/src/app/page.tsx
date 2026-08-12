@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Product, Review } from '@/types';
-import { mockApi } from '@/lib/mockApi';
+import { api } from '@/lib/api';
 import ProductCard from '@/components/ProductCard';
 import ReviewCard from '@/components/ReviewCard';
 import Container from '@/components/layout/Container';
@@ -18,12 +18,12 @@ export default function Home() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [productsData, allReviews] = await Promise.all([
-          mockApi.getProducts(),
-          Promise.all(
-            ['1', '2', '3', '4'].map(id => mockApi.getProductReviews(id))
-          ).then(results => results.flat())
-        ]);
+        const productsData = await api.getProducts();
+        const allReviews = (
+          await Promise.all(
+            productsData.slice(0, 4).map((p) => api.getProductReviews(p.id))
+          )
+        ).flat();
         setProducts(productsData);
         setReviews(allReviews.slice(0, 4));
       } catch (error) {
