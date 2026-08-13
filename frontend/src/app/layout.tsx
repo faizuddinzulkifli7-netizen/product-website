@@ -69,7 +69,25 @@ export default function RootLayout({
                     </ul>
                   </div>
                 </div>
-                <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
+                <div className="border-t border-gray-800 mt-8 pt-8 space-y-4 text-xs text-gray-500 leading-relaxed">
+                  <p>
+                    The platform does not sell peptides and does not provide medical advice. It
+                    is intended for educational and scientific research reference purposes only.
+                  </p>
+                  <p>
+                    The Finnish Medicines Agency (Fimea) warns: &ldquo;Do not use injectable
+                    peptides purchased online. If the product is injected through the skin, it
+                    may be considered a medicine. Medicines should only be used when their
+                    quality, safety and efficacy have been assessed.&rdquo;
+                  </p>
+                  <p>
+                    This website is for educational and research purposes only. Our products are
+                    intended for laboratory research use only and are not approved for human
+                    consumption. By using this site, you acknowledge that you understand these
+                    products are not for human use.
+                  </p>
+                </div>
+                <div className="border-t border-gray-800 mt-6 pt-6 text-center text-sm text-gray-400">
                   <p>&copy; 2024 PeptideStore. All rights reserved.</p>
                 </div>
               </div>

@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Product, Review } from '@/types';
+import { Product } from '@/types';
 import { api } from '@/lib/api';
 import ProductCard from '@/components/ProductCard';
-import ReviewCard from '@/components/ReviewCard';
+import TrustBadges from '@/components/TrustBadges';
+import ResearchCredibility from '@/components/ResearchCredibility';
 import Container from '@/components/layout/Container';
 import Section from '@/components/layout/Section';
 import PageHeader from '@/components/layout/PageHeader';
@@ -12,20 +13,13 @@ import Loading from '@/components/ui/Loading';
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         const productsData = await api.getProducts();
-        const allReviews = (
-          await Promise.all(
-            productsData.slice(0, 4).map((p) => api.getProductReviews(p.id))
-          )
-        ).flat();
         setProducts(productsData);
-        setReviews(allReviews.slice(0, 4));
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -59,15 +53,11 @@ export default function Home() {
         </div>
       </Section>
 
-      <div className="bg-white rounded-lg shadow-md p-8">
-        <Section title="Customer Reviews">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {reviews.map((review) => (
-              <ReviewCard key={review.id} review={review} />
-            ))}
-          </div>
-        </Section>
+      <div className="mb-16">
+        <TrustBadges />
       </div>
+
+      <ResearchCredibility />
     </Container>
   );
 }

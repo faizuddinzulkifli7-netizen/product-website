@@ -69,7 +69,7 @@ export default function QuantitySelector({
         min={min}
         max={max}
         disabled={disabled}
-        className={`${styles.input} text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500`}
+        className={`${styles.input} text-center border border-gray-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500`}
       />
       <button
         type="button"

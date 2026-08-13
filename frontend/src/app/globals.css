@@ -12,12 +12,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/*
+ * No dark theme is implemented — every component hardcodes light-theme
+ * Tailwind classes (bg-white, text-gray-900, etc). Auto-switching these
+ * root colors based on OS dark-mode preference left form fields that don't
+ * set their own text color inheriting near-white text on a white
+ * background, which is what made them unreadable.
+ */
 
 body {
   background: var(--background);
