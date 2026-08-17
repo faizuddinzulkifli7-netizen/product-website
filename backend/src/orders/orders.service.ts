@@ -93,7 +93,7 @@ export class OrdersService {
       total,
       status: OrderStatus.CREATED,
       paymentStatus: PaymentStatus.PENDING,
-      paymentMethod: 'BTCPAY',
+      paymentMethod: 'NEXAPAY',
     });
 
     const savedOrder = await this.ordersRepository.save(order);

@@ -71,7 +71,7 @@ export class Order {
   @Column({ type: 'varchar', default: PaymentStatus.PENDING })
   paymentStatus: PaymentStatus;
 
-  @Column({ default: 'BTCPAY' })
+  @Column({ default: 'NEXAPAY' })
   paymentMethod: string;
 
   @Column({ nullable: true })
