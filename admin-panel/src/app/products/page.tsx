@@ -1,7 +1,8 @@
 'use client';
 
 import { useAuthRedirect, useDataLoader, useModal, useConfirm } from '@/hooks';
-import { adminApi } from '@/lib/mockApi';
+import { adminApi } from '@/lib/api';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Product } from '@/types';
 import { PageHeader, PageLayout, FilterBar, Card } from '@/components/layout';
 import { Button, Modal } from '@/components/ui';
@@ -11,6 +12,7 @@ import Link from 'next/link';
 
 export default function ProductsPage() {
   const { user } = useAuthRedirect();
+  const { formatPrice } = useCurrency();
   const { data: products, loading, refetch } = useDataLoader<Product[]>({
     loadFn: adminApi.getProducts,
     enabled: !!user,
@@ -108,8 +110,13 @@ export default function ProductsPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
-                        <div className="h-10 w-10 rounded bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-                          📦
+                        <div className="h-10 w-10 rounded bg-gray-200 dark:bg-gray-600 flex items-center justify-center overflow-hidden">
+                          {product.image && !product.image.includes('/api/placeholder') ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+                          ) : (
+                            '📦'
+                          )}
                         </div>
                       </div>
                       <div className="ml-4">
@@ -126,7 +133,7 @@ export default function ProductsPage() {
                     {product.category}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    ${product.price.toFixed(2)}
+                    {formatPrice(product.price)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                     {product.stockLevel ?? 'N/A'}

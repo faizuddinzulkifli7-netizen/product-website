@@ -45,6 +45,9 @@ export class Product {
   @Column({ default: true })
   isVisible: boolean;
 
+  @Column({ default: false })
+  freeShipping: boolean;
+
   @Column('text', { nullable: true })
   specifications: string | null; // JSON string
 

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { CartItem as CartItemType } from '@/types';
 import { useCart } from '@/contexts/CartContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import ProductImage from '@/components/product/ProductImage';
 import ProductInfo from '@/components/product/ProductInfo';
 import QuantitySelector from '@/components/ui/QuantitySelector';
@@ -14,6 +15,7 @@ interface CartItemProps {
 
 export default function CartItem({ item }: CartItemProps) {
   const { updateQuantity, removeFromCart } = useCart();
+  const { formatPrice } = useCurrency();
 
   if (!item.product) return null;
 
@@ -42,7 +44,7 @@ export default function CartItem({ item }: CartItemProps) {
             size="sm"
           />
           <p className="text-lg font-semibold text-gray-900">
-            ${(item.product.price * item.quantity).toFixed(2)}
+            {formatPrice(item.product.price * item.quantity)}
           </p>
           <Button
             variant="danger"

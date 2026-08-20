@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Product } from '@/types';
 import { Input, Select, Checkbox, Button } from '@/components/ui';
+import { adminApi } from '@/lib/api';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface ProductFormProps {
   product?: Product | null;
@@ -10,6 +12,7 @@ interface ProductFormProps {
 }
 
 export default function ProductForm({ product, onSubmit, onCancel, loading }: ProductFormProps) {
+  const { ready: currencyReady, usdToEur, eurToUsd } = useCurrency();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -26,6 +29,9 @@ export default function ProductForm({ product, onSubmit, onCancel, loading }: Pr
     storage: '',
     warnings: '',
   });
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (product) {
@@ -33,7 +39,9 @@ export default function ProductForm({ product, onSubmit, onCancel, loading }: Pr
         name: product.name,
         description: product.description,
         shortDescription: product.shortDescription,
-        price: product.price,
+        // product.price is stored in USD; the form edits in EUR to match
+        // every other price display in the admin panel.
+        price: Math.round(usdToEur(product.price) * 100) / 100,
         category: product.category,
         inStock: product.inStock,
         stockLevel: product.stockLevel || 0,
@@ -46,12 +54,37 @@ export default function ProductForm({ product, onSubmit, onCancel, loading }: Pr
         warnings: product.extendedInfo?.warnings?.join('\n') || '',
       });
     }
-  }, [product]);
+    // Re-run once rates finish loading, in case the modal opened before
+    // the conversion factor was available.
+  }, [product, currencyReady]);
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadError('');
+    setUploading(true);
+    try {
+      const { url } = await adminApi.uploadProductImage(file);
+      setFormData((prev) => ({ ...prev, image: url }));
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      setUploadError(error instanceof Error ? error.message : 'Failed to upload image');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await onSubmit({
       ...formData,
+      // Convert the entered EUR value back to USD, which is what the
+      // backend stores and what payment/checkout logic is built around.
+      price: Math.round(eurToUsd(formData.price) * 100) / 100,
       extendedInfo: {
         specifications: formData.specifications.split('\n').filter((s) => s.trim()),
         usage: formData.usage,
@@ -96,7 +129,7 @@ export default function ProductForm({ product, onSubmit, onCancel, loading }: Pr
 
       <div className="grid grid-cols-3 gap-4">
         <Input
-          label="Price"
+          label="Price (EUR)"
           type="number"
           step="0.01"
           required
@@ -109,12 +142,41 @@ export default function ProductForm({ product, onSubmit, onCancel, loading }: Pr
           value={formData.stockLevel}
           onChange={(e) => setFormData({ ...formData, stockLevel: parseInt(e.target.value) || 0 })}
         />
-        <Input
-          label="Image URL"
-          type="text"
-          value={formData.image}
-          onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Product Image
+        </label>
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 h-20 w-20 rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 overflow-hidden flex items-center justify-center">
+            {formData.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={formData.image} alt="Product preview" className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-gray-400 text-2xl">📦</span>
+            )}
+          </div>
+          <div className="flex-1 space-y-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={handleImageFileChange}
+              disabled={uploading}
+              className="block w-full text-sm text-gray-600 dark:text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-gray-600 dark:file:text-gray-100"
+            />
+            {uploading && <p className="text-sm text-gray-500">Uploading…</p>}
+            {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
+            <Input
+              label="Image URL"
+              type="text"
+              value={formData.image}
+              onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+              placeholder="Or paste an image URL"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4">
@@ -171,7 +233,7 @@ export default function ProductForm({ product, onSubmit, onCancel, loading }: Pr
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading || uploading}>
           {loading ? 'Saving...' : 'Save'}
         </Button>
       </div>

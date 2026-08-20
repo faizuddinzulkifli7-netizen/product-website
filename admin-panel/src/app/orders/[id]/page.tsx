@@ -2,7 +2,8 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthRedirect, useDataLoader } from '@/hooks';
-import { adminApi } from '@/lib/mockApi';
+import { adminApi } from '@/lib/api';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Order } from '@/types';
 import { PageHeader, PageLayout, Card } from '@/components/layout';
 import { Button, Select } from '@/components/ui';
@@ -13,6 +14,7 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const orderId = params.id as string;
   const { user } = useAuthRedirect();
+  const { formatPrice } = useCurrency();
   const { data: order, loading, refetch } = useDataLoader<Order | null>({
     loadFn: () => adminApi.getOrder(orderId),
     enabled: !!user && !!orderId,
@@ -68,24 +70,24 @@ export default function OrderDetailPage() {
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">{item.productName}</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Quantity: {item.quantity} × ${item.price.toFixed(2)}
+                      Quantity: {item.quantity} × {formatPrice(item.price)}
                     </p>
                   </div>
-                  <p className="font-medium text-gray-900 dark:text-white">${item.subtotal.toFixed(2)}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{formatPrice(item.subtotal)}</p>
                 </div>
               ))}
               <div className="flex justify-between items-center pt-4">
                 <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
-                <span className="text-gray-900 dark:text-white">${order.subtotal.toFixed(2)}</span>
+                <span className="text-gray-900 dark:text-white">{formatPrice(order.subtotal)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 dark:text-gray-400">Shipping</span>
-                <span className="text-gray-900 dark:text-white">${order.shipping.toFixed(2)}</span>
+                <span className="text-gray-900 dark:text-white">{formatPrice(order.shipping)}</span>
               </div>
               <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-lg font-semibold text-gray-900 dark:text-white">Total</span>
                 <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                  ${order.total.toFixed(2)}
+                  {formatPrice(order.total)}
                 </span>
               </div>
             </div>

@@ -47,7 +47,7 @@ export class ProductsService {
   async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
     const product = await this.findOne(id);
     const updateData: any = { ...updateProductDto };
-    
+
     if (updateProductDto.specifications) {
       updateData.specifications = JSON.stringify(updateProductDto.specifications);
     }
@@ -55,7 +55,15 @@ export class ProductsService {
       updateData.warnings = JSON.stringify(updateProductDto.warnings);
     }
 
-    Object.assign(product, updateData);
+    // updateProductDto's untouched optional fields are still own properties
+    // set to undefined (TS class fields), so a blind Object.assign would
+    // overwrite product.name/price/etc. with undefined even when the
+    // request omitted them.
+    for (const [key, value] of Object.entries(updateData)) {
+      if (value !== undefined) {
+        (product as any)[key] = value;
+      }
+    }
     return this.productsRepository.save(product);
   }
 

@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import { Order, PaymentStatus, OrderStatus } from '../entities/order.entity';
 import { Product } from '../entities/product.entity';
-import { User } from '../entities/user.entity';
+import { User, UserRole } from '../entities/user.entity';
 import { ActivityLog } from '../entities/activity-log.entity';
+import { CreateAdminUserDto, UpdateAdminUserDto } from './dto/user.dto';
 
 @Injectable()
 export class AdminService {
@@ -108,6 +110,60 @@ export class AdminService {
       details,
     });
     return this.activityLogsRepository.save(log);
+  }
+
+  // Staff accounts only (admin/manager) — this page is for internal
+  // permissions management, not the customer user base.
+  async getStaffUsers(): Promise<User[]> {
+    return this.usersRepository.find({
+      where: [{ role: UserRole.ADMIN }, { role: UserRole.MANAGER }],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async createStaffUser(dto: CreateAdminUserDto): Promise<User> {
+    const existing = await this.usersRepository.findOne({ where: { email: dto.email } });
+    if (existing) {
+      throw new ConflictException('User already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const user = this.usersRepository.create({
+      email: dto.email,
+      name: dto.name,
+      password: hashedPassword,
+      role: dto.role,
+      isActive: true,
+    });
+    return this.usersRepository.save(user);
+  }
+
+  async updateStaffUser(id: string, dto: UpdateAdminUserDto): Promise<User> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    // dto's untouched optional fields are still own properties set to
+    // undefined (TS class fields), so a blind Object.assign would overwrite
+    // user.name/role/etc. with undefined even when the request omitted them.
+    const { password, ...rest } = dto;
+    for (const [key, value] of Object.entries(rest)) {
+      if (value !== undefined) {
+        (user as any)[key] = value;
+      }
+    }
+    if (password) {
+      user.password = await bcrypt.hash(password, 10);
+    }
+    return this.usersRepository.save(user);
+  }
+
+  async deleteStaffUser(id: string): Promise<void> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    await this.usersRepository.remove(user);
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useAuthRedirect, useDataLoader } from '@/hooks';
-import { adminApi } from '@/lib/mockApi';
+import { adminApi } from '@/lib/api';
 import { ActivityLog } from '@/types';
 import { PageHeader, PageLayout, FilterBar, Card } from '@/components/layout';
 import { Select } from '@/components/ui';

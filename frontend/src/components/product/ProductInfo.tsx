@@ -1,5 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 import { Product } from '@/types';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface ProductInfoProps {
   product: Product;
@@ -14,6 +17,8 @@ export default function ProductInfo({
   showPrice = true,
   className = '',
 }: ProductInfoProps) {
+  const { formatPrice } = useCurrency();
+
   return (
     <div className={className}>
       <Link href={`/products/${product.id}`}>
@@ -28,7 +33,7 @@ export default function ProductInfo({
       )}
       {showPrice && (
         <p className="text-2xl font-bold text-blue-600">
-          ${product.price.toFixed(2)}
+          {formatPrice(product.price)}
         </p>
       )}
     </div>

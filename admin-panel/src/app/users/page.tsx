@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAuthRedirect, useDataLoader, useModal, useConfirm } from '@/hooks';
-import { adminApi } from '@/lib/mockApi';
+import { adminApi } from '@/lib/api';
 import { AdminUser } from '@/types';
 import { PageHeader, PageLayout, Card } from '@/components/layout';
 import { Button, Modal, Input, Select, Checkbox } from '@/components/ui';
@@ -36,7 +36,7 @@ export default function UsersPage() {
       if (modal.data) {
         await adminApi.updateUser(modal.data.id, data);
       } else {
-        await adminApi.createUser(data as Omit<AdminUser, 'id' | 'createdAt'>);
+        await adminApi.createUser(data as Partial<AdminUser> & { password: string });
       }
       modal.close();
       refetch();
@@ -151,6 +151,7 @@ function UserForm({
     email: user?.email || '',
     role: (user?.role || 'manager') as 'admin' | 'manager',
     isActive: user?.isActive ?? true,
+    password: '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -158,7 +159,10 @@ function UserForm({
     e.preventDefault();
     setSaving(true);
     try {
-      await onSubmit(formData);
+      const { password, ...rest } = formData;
+      // Editing: omit password entirely unless they're actually changing it.
+      // Creating: password is required, always send it.
+      await onSubmit(password ? formData : rest);
     } finally {
       setSaving(false);
     }
@@ -176,8 +180,17 @@ function UserForm({
         label="Email"
         type="email"
         required
+        disabled={!!user}
         value={formData.email}
         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+      />
+      <Input
+        label={user ? 'New Password' : 'Password'}
+        type="password"
+        required={!user}
+        helperText={user ? 'Leave blank to keep the current password' : undefined}
+        value={formData.password}
+        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
       />
       <Select
         label="Role"

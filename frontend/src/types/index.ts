@@ -53,6 +53,8 @@ export interface CheckoutData {
   state: string;
   zipCode: string;
   country: string;
+  paymentType: 'card' | 'crypto';
+  currency: string;
 }
 
 export interface AuthResponse {

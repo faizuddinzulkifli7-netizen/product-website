@@ -82,6 +82,8 @@ export const api = {
           zipCode: checkoutData.zipCode,
           country: checkoutData.country,
         },
+        paymentType: checkoutData.paymentType,
+        currency: checkoutData.currency,
         guestId,
       }),
     }),

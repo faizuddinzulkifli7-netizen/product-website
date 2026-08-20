@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Headers,
   HttpCode,
@@ -13,6 +14,7 @@ import type { Request } from 'express';
 import { OrdersService } from '../orders/orders.service';
 import { BTCPayService } from '../payment/btcpay.service';
 import { NexaPayService } from '../payment/nexapay.service';
+import { PayGateService } from '../payment/paygate.service';
 
 @Controller('webhooks')
 export class WebhooksController {
@@ -20,6 +22,7 @@ export class WebhooksController {
     private ordersService: OrdersService,
     private btcPayService: BTCPayService,
     private nexaPayService: NexaPayService,
+    private payGateService: PayGateService,
   ) {}
 
   @Post('btcpay')
@@ -72,6 +75,47 @@ export class WebhooksController {
 
     // Unhandled/unactionable events still get a 200 so NexaPay stops retrying.
     if (!event || !orderId) {
+      return { received: true };
+    }
+
+    await this.ordersService.handlePaymentWebhook(
+      orderId,
+      event.transactionId || '',
+      event.status,
+    );
+
+    return { received: true, processed: true };
+  }
+
+  /**
+   * PayGate's callback is a plain, unsigned GET request — anyone who guessed
+   * this URL could hit it with fake query params claiming an order is paid.
+   * So the incoming params are never trusted directly: we look up the
+   * ipn_token we minted and stored ourselves for this order, then ask
+   * PayGate's API independently whether it's actually paid.
+   */
+  @Get('paygate')
+  async handlePayGateWebhook(@Query('orderId') orderId: string) {
+    if (!orderId) {
+      return { received: true };
+    }
+
+    let ipnToken: string | undefined;
+    try {
+      const order = await this.ordersService.findOne(orderId);
+      ipnToken = order.paymentRequestId;
+    } catch {
+      // Unknown order — ack anyway so PayGate doesn't keep retrying.
+      return { received: true };
+    }
+
+    if (!ipnToken) {
+      return { received: true };
+    }
+
+    const event = await this.payGateService.verifyPayment(ipnToken);
+
+    if (!event) {
       return { received: true };
     }
 

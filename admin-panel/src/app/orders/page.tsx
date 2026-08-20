@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useAuthRedirect, useDataLoader } from '@/hooks';
-import { adminApi } from '@/lib/mockApi';
+import { adminApi } from '@/lib/api';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Order } from '@/types';
 import { PageHeader, PageLayout, FilterBar, Card } from '@/components/layout';
 import { Select, Button } from '@/components/ui';
@@ -12,6 +13,7 @@ import Link from 'next/link';
 
 export default function OrdersPage() {
   const { user } = useAuthRedirect();
+  const { formatPrice } = useCurrency();
   const { data: orders, loading, refetch } = useDataLoader<Order[]>({
     loadFn: adminApi.getOrders,
     enabled: !!user,
@@ -132,7 +134,7 @@ export default function OrdersPage() {
                     {order.items.length} item(s)
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                    ${order.total.toFixed(2)}
+                    {formatPrice(order.total)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <OrderStatusSelect

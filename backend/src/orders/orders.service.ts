@@ -14,6 +14,8 @@ import { CheckoutDto, UpdateOrderStatusDto, UpdatePaymentStatusDto } from './dto
 import { PAYMENT_GATEWAY } from '../payment/payment-gateway.interface';
 import type { PaymentGateway } from '../payment/payment-gateway.interface';
 import { ProductsService } from '../products/products.service';
+import { PayGateService } from '../payment/paygate.service';
+import { CurrencyService } from '../currency/currency.service';
 
 @Injectable()
 export class OrdersService {
@@ -29,6 +31,7 @@ export class OrdersService {
     @Inject(PAYMENT_GATEWAY)
     private paymentGateway: PaymentGateway,
     private productsService: ProductsService,
+    private currencyService: CurrencyService,
   ) {}
 
   async createOrder(checkoutDto: CheckoutDto, userId?: string): Promise<{ order: Order; paymentUrl: string }> {
@@ -43,6 +46,7 @@ export class OrdersService {
 
     // Validate product availability and calculate totals
     let subtotal = 0;
+    let allFreeShipping = true;
     const orderItems: OrderItem[] = [];
 
     for (const cartItem of cart.items) {
@@ -56,6 +60,10 @@ export class OrdersService {
 
       if (product.stockLevel < cartItem.quantity) {
         throw new BadRequestException(`Insufficient stock for ${product.name}`);
+      }
+
+      if (!product.freeShipping) {
+        allFreeShipping = false;
       }
 
       const itemPrice = product.price;
@@ -72,7 +80,8 @@ export class OrdersService {
       orderItems.push(orderItem);
     }
 
-    const shipping = 10; // Fixed shipping cost
+    // Flat $10 shipping, waived only when every item in the cart is flagged free-shipping.
+    const shipping = allFreeShipping ? 0 : 10;
     const total = subtotal + shipping;
 
     // Generate order number
@@ -93,17 +102,34 @@ export class OrdersService {
       total,
       status: OrderStatus.CREATED,
       paymentStatus: PaymentStatus.PENDING,
-      paymentMethod: 'NEXAPAY',
+      paymentMethod: 'PAYGATE',
     });
 
     const savedOrder = await this.ordersRepository.save(order);
 
-    // Create payment request
-    const { paymentUrl, requestId } = await this.paymentGateway.createPaymentRequest(
-      savedOrder.id,
-      total,
-      'USD',
-    );
+    // All amounts above are computed and stored in USD, our source of
+    // truth. Only the payment-gateway-facing amount is converted, so the
+    // customer pays (and PayGate's provider list is chosen) in their
+    // selected currency without touching stored order totals.
+    const currency = checkoutDto.currency || 'EUR';
+    const gatewayAmount = await this.currencyService.convertFromUsd(total, currency);
+
+    // Create payment request. 'crypto' bypasses the card/onramp selector
+    // entirely for customers paying directly from their own BTC/EVM wallet.
+    const { paymentUrl, requestId } =
+      checkoutDto.paymentType === 'crypto' &&
+      this.paymentGateway instanceof PayGateService
+        ? await this.paymentGateway.createDirectCryptoPayment(
+            savedOrder.id,
+            gatewayAmount,
+            currency,
+          )
+        : await this.paymentGateway.createPaymentRequest(
+            savedOrder.id,
+            gatewayAmount,
+            currency,
+            checkoutDto.email,
+          );
 
     savedOrder.paymentRequestId = requestId;
     await this.ordersRepository.save(savedOrder);

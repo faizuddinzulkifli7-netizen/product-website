@@ -1,0 +1,15 @@
+eupeptides.org {
+	reverse_proxy frontend:3001
+}
+
+www.eupeptides.org {
+	redir https://eupeptides.org{uri} permanent
+}
+
+api.eupeptides.org {
+	reverse_proxy backend:3000
+}
+
+admin.eupeptides.org {
+	reverse_proxy admin-panel:3002
+}

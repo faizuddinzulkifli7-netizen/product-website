@@ -12,11 +12,16 @@ export interface NormalizedPaymentEvent {
 }
 
 export interface PaymentGateway {
-  /** Create a hosted payment/checkout session and return the redirect URL. */
+  /**
+   * Create a hosted payment/checkout session and return the redirect URL.
+   * customerEmail is optional because most gateways don't need it — PayGate
+   * is the exception, its checkout endpoints require one.
+   */
   createPaymentRequest(
     orderId: string,
     amount: number,
     currency?: string,
+    customerEmail?: string,
   ): Promise<{ paymentUrl: string; requestId: string }>;
 
   /**

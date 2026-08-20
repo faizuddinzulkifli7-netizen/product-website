@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { CURRENCY_OPTIONS, DISPLAY_CURRENCY } from '@/contexts/CurrencyContext';
 import { CheckoutData } from '@/types';
 import { api } from '@/lib/api';
 import Container from '@/components/layout/Container';
@@ -14,11 +15,16 @@ import EmptyState from '@/components/ui/EmptyState';
 import OrderSummary from '@/components/cart/OrderSummary';
 
 const countryOptions = [
-  { value: 'United States', label: 'United States' },
-  { value: 'Canada', label: 'Canada' },
-  { value: 'United Kingdom', label: 'United Kingdom' },
-  { value: 'Australia', label: 'Australia' },
+  { value: 'Sweden', label: 'Sweden' },
+  { value: 'Finland', label: 'Finland' },
+  { value: 'Norway', label: 'Norway' },
+  { value: 'Denmark', label: 'Denmark' },
   { value: 'Germany', label: 'Germany' },
+  { value: 'United Kingdom', label: 'United Kingdom' },
+  { value: 'France', label: 'France' },
+  { value: 'Spain', label: 'Spain' },
+  { value: 'Portugal', label: 'Portugal' },
+  { value: 'Serbia', label: 'Serbia' },
 ];
 
 export default function CheckoutPage() {
@@ -36,7 +42,9 @@ export default function CheckoutPage() {
     city: '',
     state: '',
     zipCode: '',
-    country: 'United States',
+    country: 'Sweden',
+    paymentType: 'card',
+    currency: DISPLAY_CURRENCY,
   });
 
   useEffect(() => {
@@ -193,6 +201,72 @@ export default function CheckoutPage() {
                   options={countryOptions}
                   required
                 />
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Method</h2>
+
+              <div className="mb-4 max-w-xs">
+                <Select
+                  label="Currency"
+                  name="currency"
+                  value={formData.currency}
+                  onChange={handleChange}
+                  options={CURRENCY_OPTIONS}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Local payment options (e.g. Klarna for SEK) are shown based on your currency.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label
+                  className={`flex items-start gap-3 rounded-lg border p-4 cursor-pointer transition-colors ${
+                    formData.paymentType === 'card'
+                      ? 'border-blue-600 ring-1 ring-blue-600 bg-blue-50'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="paymentType"
+                    value="card"
+                    checked={formData.paymentType === 'card'}
+                    onChange={handleChange}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block font-medium text-gray-900">Card / Bank</span>
+                    <span className="block text-sm text-gray-500">
+                      Pay by card, Klarna, or other local options — settled to us in crypto behind the scenes.
+                    </span>
+                  </span>
+                </label>
+
+                <label
+                  className={`flex items-start gap-3 rounded-lg border p-4 cursor-pointer transition-colors ${
+                    formData.paymentType === 'crypto'
+                      ? 'border-blue-600 ring-1 ring-blue-600 bg-blue-50'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="paymentType"
+                    value="crypto"
+                    checked={formData.paymentType === 'crypto'}
+                    onChange={handleChange}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block font-medium text-gray-900">Pay with Crypto</span>
+                    <span className="block text-sm text-gray-500">
+                      Already hold crypto? Pay directly from your own wallet (Bitcoin or EVM chains).
+                    </span>
+                  </span>
+                </label>
               </div>
             </div>
 

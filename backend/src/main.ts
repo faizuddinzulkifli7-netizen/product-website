@@ -1,11 +1,17 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { UPLOADS_DIR } from './uploads/uploads.controller';
 
 async function bootstrap() {
   // rawBody keeps the unparsed request bytes available (req.rawBody), which
   // BTCPay requires to verify webhook signatures.
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+
+  // Served outside the /api prefix so uploaded image URLs are plain,
+  // stable paths (e.g. APP_URL/uploads/xyz.jpg).
+  app.useStaticAssets(UPLOADS_DIR, { prefix: '/uploads' });
 
   // Enable CORS
   app.enableCors({

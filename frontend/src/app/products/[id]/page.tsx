@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { Product, Review } from '@/types';
 import { api } from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import ReviewCard from '@/components/ReviewCard';
 import Container from '@/components/layout/Container';
 import Section from '@/components/layout/Section';
@@ -19,7 +20,8 @@ export default function ProductDetailPage() {
   const params = useParams();
   const productId = params.id as string;
   const { addToCart } = useCart();
-  
+  const { formatPrice } = useCurrency();
+
   const [product, setProduct] = useState<Product | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [quantity, setQuantity] = useState(1);
@@ -91,7 +93,7 @@ export default function ProductDetailPage() {
         <div className="bg-white rounded-lg shadow-md p-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">{product.name}</h1>
           <p className="text-2xl font-semibold text-blue-600 mb-6">
-            ${product.price.toFixed(2)}
+            {formatPrice(product.price)}
           </p>
           
           <div className="mb-6">

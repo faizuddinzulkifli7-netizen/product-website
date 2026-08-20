@@ -24,6 +24,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV DATABASE_PATH=/app/data/database.sqlite
+ENV UPLOADS_DIR=/app/data/uploads
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
 

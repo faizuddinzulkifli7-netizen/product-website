@@ -36,6 +36,10 @@ export class CreateProductDto {
   @IsOptional()
   isVisible?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  freeShipping?: boolean;
+
   @IsArray()
   @IsOptional()
   specifications?: string[];
@@ -94,6 +98,10 @@ export class UpdateProductDto {
   @IsBoolean()
   @IsOptional()
   isVisible?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  freeShipping?: boolean;
 
   @IsArray()
   @IsOptional()

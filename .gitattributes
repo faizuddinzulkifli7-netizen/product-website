@@ -1,0 +1,4 @@
+# Shell scripts must keep LF endings — a CRLF shebang line breaks exec() on
+# Linux (the container this ships to), which is a silent, hard-to-diagnose
+# failure at deploy time rather than a checkout-time warning.
+*.sh text eol=lf

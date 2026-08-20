@@ -1,6 +1,7 @@
 'use client';
 
 import { useCart } from '@/contexts/CartContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import Button from '@/components/ui/Button';
 
 interface OrderSummaryProps {
@@ -15,6 +16,7 @@ export default function OrderSummary({
   checkoutButtonText = 'Proceed to Checkout',
 }: OrderSummaryProps) {
   const { cart, getTotalPrice } = useCart();
+  const { formatPrice } = useCurrency();
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 sticky top-24">
@@ -22,7 +24,7 @@ export default function OrderSummary({
       <div className="space-y-2 mb-4">
         <div className="flex justify-between text-gray-600">
           <span>Subtotal</span>
-          <span>${getTotalPrice().toFixed(2)}</span>
+          <span>{formatPrice(getTotalPrice())}</span>
         </div>
         <div className="flex justify-between text-gray-600">
           <span>Shipping</span>
@@ -31,7 +33,7 @@ export default function OrderSummary({
         <div className="border-t pt-2 mt-2">
           <div className="flex justify-between text-lg font-semibold text-gray-900">
             <span>Total</span>
-            <span>${getTotalPrice().toFixed(2)}</span>
+            <span>{formatPrice(getTotalPrice())}</span>
           </div>
         </div>
       </div>

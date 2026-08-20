@@ -38,6 +38,20 @@ export class CheckoutDto {
   @IsString()
   @IsOptional()
   guestId?: string;
+
+  // 'card' routes through PayGate's onramp selector (Klarna, card, etc.);
+  // 'crypto' skips straight to PayGate's own wallet-to-wallet checkout for
+  // customers who already hold BTC/EVM crypto. Defaults to 'card'.
+  @IsString()
+  @IsOptional()
+  paymentType?: 'card' | 'crypto';
+
+  // ISO currency code (e.g. 'EUR', 'SEK'). Determines both the currency the
+  // customer pays in and, on the card path, which local providers PayGate's
+  // selector surfaces (e.g. Klarna only appears for SEK). Defaults to 'EUR'.
+  @IsString()
+  @IsOptional()
+  currency?: string;
 }
 
 export class UpdateOrderStatusDto {

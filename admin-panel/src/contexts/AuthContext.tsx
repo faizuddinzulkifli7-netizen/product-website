@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AdminUser } from '@/types';
-import { adminApi } from '@/lib/mockApi';
+import { adminApi } from '@/lib/api';
 
 interface AuthContextType {
   user: AdminUser | null;

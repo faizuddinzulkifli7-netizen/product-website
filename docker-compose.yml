@@ -9,10 +9,13 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_PATH: /app/data/database.sqlite
+      UPLOADS_DIR: /app/data/uploads
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
       ADMIN_PANEL_URL: ${ADMIN_PANEL_URL:-http://localhost:3002}
       APP_URL: ${APP_URL:-http://localhost:3000}
+      PAYGATE_MERCHANT_WALLET: ${PAYGATE_MERCHANT_WALLET:-}
+      PAYGATE_BTC_WALLET: ${PAYGATE_BTC_WALLET:-}
       NEXAPAY_API_KEY: ${NEXAPAY_API_KEY:-}
       NEXAPAY_WEBHOOK_SECRET: ${NEXAPAY_WEBHOOK_SECRET:-}
       NEXAPAY_CRYPTO_ASSET: ${NEXAPAY_CRYPTO_ASSET:-USDC}
@@ -25,7 +28,7 @@ services:
       B2BINPAY_API_SECRET: ${B2BINPAY_API_SECRET:-}
       B2BINPAY_WALLET_ID: ${B2BINPAY_WALLET_ID:-}
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - backend-data:/app/data
 
@@ -41,13 +44,15 @@ services:
       NODE_ENV: production
       PORT: 3001
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     depends_on:
       - backend
 
   admin-panel:
     build:
       context: ./admin-panel
+      args:
+        NEXT_PUBLIC_API_URL: ${APP_URL:-http://localhost:3000}/api
     image: peptide-admin-panel
     container_name: peptide-admin-panel
     restart: unless-stopped
@@ -55,9 +60,27 @@ services:
       NODE_ENV: production
       PORT: 3002
     ports:
-      - "3002:3002"
+      - "127.0.0.1:3002:3002"
     depends_on:
       - backend
 
+  caddy:
+    image: caddy:2-alpine
+    container_name: peptide-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - backend
+      - frontend
+      - admin-panel
+
 volumes:
   backend-data:
+  caddy-data:
+  caddy-config:

@@ -1,7 +1,8 @@
 'use client';
 
 import { useAuthRedirect, useDataLoader } from '@/hooks';
-import { adminApi } from '@/lib/mockApi';
+import { adminApi } from '@/lib/api';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { DashboardMetrics } from '@/types';
 import { PageHeader, PageLayout, Card } from '@/components/layout';
 import { Button } from '@/components/ui';
@@ -10,6 +11,7 @@ import Link from 'next/link';
 
 export default function Dashboard() {
   const { user } = useAuthRedirect();
+  const { formatPrice } = useCurrency();
   const { data: metrics, loading } = useDataLoader<DashboardMetrics>({
     loadFn: adminApi.getDashboardMetrics,
     enabled: !!user,
@@ -30,7 +32,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           title="Total Sales"
-          value={`$${metrics.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          value={formatPrice(metrics.totalSales)}
           icon="💰"
         />
         <MetricCard
@@ -60,7 +62,7 @@ export default function Dashboard() {
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-gray-600 dark:text-gray-400">{item.month}</span>
                   <span className="font-medium text-gray-900 dark:text-white">
-                    ${item.sales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatPrice(item.sales)}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
@@ -158,7 +160,7 @@ export default function Dashboard() {
                     {order.customerName}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    ${order.total.toFixed(2)}
+                    {formatPrice(order.total)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <StatusBadge status={order.status} type="order" />
