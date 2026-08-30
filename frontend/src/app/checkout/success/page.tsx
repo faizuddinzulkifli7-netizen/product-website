@@ -1,9 +1,18 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useCart } from '@/contexts/CartContext';
 import Container from '@/components/layout/Container';
 import Button from '@/components/ui/Button';
 
 export default function CheckoutSuccessPage() {
+  const { clearCart } = useCart();
+
+  useEffect(() => {
+    clearCart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <Container maxWidth="2xl" className="py-12">
       <div className="bg-white rounded-lg shadow-md p-12 text-center">

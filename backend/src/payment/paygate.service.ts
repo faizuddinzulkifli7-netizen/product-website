@@ -4,6 +4,8 @@ import axios from 'axios';
 import {
   PaymentGateway,
   NormalizedPaymentEvent,
+  PaymentProviderOption,
+  CryptoCoinOption,
 } from './payment-gateway.interface';
 
 interface PayGateWalletResponse {
@@ -13,11 +15,19 @@ interface PayGateWalletResponse {
   ipn_token: string;
 }
 
-interface PayGateHostedCryptoResponse {
-  payment_token: string;
-  callback_url: string;
-  ipn_token: string;
+interface PayGateCryptoCoinInfo {
+  coin: string;
+  logo: string;
+  ticker: string;
+  minimum_transaction_coin: number;
 }
+
+// crypto/info.php returns a flat map of either a coin directly (btc, eth, ...)
+// or a network grouping containing several coins (bep20: { usdc: {...}, ... }).
+type PayGateCryptoInfoResponse = Record<
+  string,
+  PayGateCryptoCoinInfo | Record<string, PayGateCryptoCoinInfo>
+>;
 
 interface PayGateStatusResponse {
   status: string;
@@ -26,6 +36,57 @@ interface PayGateStatusResponse {
   coin?: string;
 }
 
+interface PayGateProviderEntry {
+  id: string;
+  provider_name: string;
+  status: string;
+  minimum_currency: string;
+  minimum_amount: number;
+}
+
+interface PayGateProviderStatusResponse {
+  providers: PayGateProviderEntry[];
+}
+
+// Client-requested exclusions — PayGate's own hosted multi-provider page
+// (pay.php) has no way to hide specific providers from it, so instead we
+// build our own curated list of single-provider links (process-payment.php
+// with an explicit &provider=), which does skip straight past the selector.
+const EXCLUDED_PROVIDER_IDS = ['coinbase', 'revolut'];
+
+// Per PayGate's docs, these providers are hard-locked to one settlement
+// currency regardless of amount — offering them to a customer paying in
+// any other currency would just fail on PayGate's end.
+const CURRENCY_LOCKED_PROVIDERS: Record<string, string> = {
+  stripe: 'USD',
+  transfi: 'USD',
+  robinhood: 'USD',
+  bitnovo: 'USD',
+  upi: 'INR',
+  interac: 'CAD',
+};
+
+const PROVIDER_CACHE_TTL_MS = 10 * 60 * 1000;
+const CRYPTO_INFO_CACHE_TTL_MS = 60 * 60 * 1000;
+
+// Only chains/networks we actually hold a wallet for — PAYGATE_BTC_WALLET
+// covers native Bitcoin, PAYGATE_MERCHANT_WALLET is a single EVM address
+// valid across every one of these networks. Solana, Tron, Monero, Litecoin,
+// etc. would each need their own dedicated wallet we don't have, so those
+// entries from crypto/info.php are left out of the picker entirely.
+const SUPPORTED_EVM_NETWORKS = [
+  'bep20',
+  'erc20',
+  'arbitrum',
+  'polygon',
+  'avax-c',
+  'bera',
+  'base',
+  'optimism',
+  'linea',
+  'monad',
+];
+
 @Injectable()
 export class PayGateService implements PaymentGateway {
   private readonly logger = new Logger(PayGateService.name);
@@ -33,6 +94,8 @@ export class PayGateService implements PaymentGateway {
   private readonly checkoutUrl = 'https://checkout.paygate.to';
   private readonly merchantWallet: string;
   private readonly btcWallet: string;
+  private providerCache: { data: PayGateProviderEntry[]; fetchedAt: number } | null = null;
+  private cryptoInfoCache: { data: PayGateCryptoInfoResponse; fetchedAt: number } | null = null;
   // PayGate's WAF rejects anything that doesn't look like a real browser
   // request from its own site — no auth token involved, just these headers.
   // (Confirmed by trial and error: axios's default UA alone gets rejected
@@ -50,12 +113,66 @@ export class PayGateService implements PaymentGateway {
     this.btcWallet = this.configService.get<string>('PAYGATE_BTC_WALLET') || '';
   }
 
+  private async getActiveProviders(): Promise<PayGateProviderEntry[]> {
+    if (this.providerCache && Date.now() - this.providerCache.fetchedAt < PROVIDER_CACHE_TTL_MS) {
+      return this.providerCache.data;
+    }
+    try {
+      const res = await axios.get<PayGateProviderStatusResponse>(
+        `${this.apiUrl}/control/provider-status`,
+        { headers: this.headers },
+      );
+      this.providerCache = { data: res.data.providers, fetchedAt: Date.now() };
+      return res.data.providers;
+    } catch (err) {
+      this.logger.warn(`Failed to fetch PayGate provider list: ${err}`);
+      // Stale cache beats none; if we've never fetched successfully the
+      // caller just gets an empty curated list and falls back to pay.php.
+      return this.providerCache?.data ?? [];
+    }
+  }
+
+  // Builds one process-payment.php link per eligible provider — this is
+  // what actually excludes coinbase/revolut, since pay.php can't.
+  private async buildProviderOptions(
+    addressIn: string,
+    amount: number,
+    currency: string,
+    email: string,
+  ): Promise<PaymentProviderOption[]> {
+    const providers = await this.getActiveProviders();
+    const params = new URLSearchParams({
+      address: addressIn,
+      amount: amount.toFixed(2),
+      currency,
+      email,
+    });
+
+    return providers
+      .filter((p) => p.status === 'active')
+      .filter((p) => !EXCLUDED_PROVIDER_IDS.includes(p.id))
+      .filter((p) => {
+        const lockedCurrency = CURRENCY_LOCKED_PROVIDERS[p.id];
+        return !lockedCurrency || lockedCurrency === currency;
+      })
+      .filter((p) => p.minimum_currency !== currency || amount >= p.minimum_amount)
+      .map((p) => {
+        const providerParams = new URLSearchParams(params);
+        providerParams.set('provider', p.id);
+        return {
+          id: p.id,
+          name: p.provider_name,
+          url: `${this.checkoutUrl}/process-payment.php?${providerParams.toString()}`,
+        };
+      });
+  }
+
   async createPaymentRequest(
     orderId: string,
     amount: number,
     currency = 'USD',
     customerEmail?: string,
-  ): Promise<{ paymentUrl: string; requestId: string }> {
+  ): Promise<{ paymentUrl: string; requestId: string; providers?: PaymentProviderOption[] }> {
     if (!this.merchantWallet) {
       throw new BadRequestException('PayGate merchant wallet is not configured');
     }
@@ -84,64 +201,119 @@ export class PayGateService implements PaymentGateway {
     const addressIn = decodeURIComponent(walletRes.data.address_in);
     const ipnToken = decodeURIComponent(walletRes.data.ipn_token);
 
+    const email = customerEmail || 'guest@eupeptides.org';
+
     // pay.php is PayGate's own hosted multi-provider selector (Transak,
-    // Banxa, Stripe, etc.) — a plain redirect URL, not an API call.
+    // Banxa, Stripe, etc.) — a plain redirect URL, not an API call. Kept as
+    // a fallback for when the curated provider list can't be built (e.g.
+    // provider-status is unreachable), since it needs no extra API calls.
     const params = new URLSearchParams({
       address: addressIn,
       amount: amount.toFixed(2),
       currency,
-      email: customerEmail || 'guest@eupeptides.org',
+      email,
     });
+
+    const providers = await this.buildProviderOptions(addressIn, amount, currency, email);
 
     return {
       paymentUrl: `${this.checkoutUrl}/pay.php?${params.toString()}`,
       // ipn_token is what lets us independently verify payment later —
       // stored as the order's paymentRequestId.
       requestId: ipnToken,
+      providers: providers.length > 0 ? providers : undefined,
     };
+  }
+
+  private async getCryptoInfo(): Promise<PayGateCryptoInfoResponse> {
+    if (this.cryptoInfoCache && Date.now() - this.cryptoInfoCache.fetchedAt < CRYPTO_INFO_CACHE_TTL_MS) {
+      return this.cryptoInfoCache.data;
+    }
+    const res = await axios.get<PayGateCryptoInfoResponse>(
+      `${this.apiUrl}/crypto/info.php`,
+      { headers: this.headers },
+    );
+    this.cryptoInfoCache = { data: res.data, fetchedAt: Date.now() };
+    return res.data;
   }
 
   /**
    * For customers who already hold crypto and want to pay directly from
    * their own wallet — a genuinely different rail from createPaymentRequest,
-   * which always routes through a card/onramp provider. Offers both EVM
-   * chains (Polygon, Base, Arbitrum, BSC, Optimism, etc.) and native
-   * Bitcoin, since both merchant wallets are configured.
+   * which always routes through a card/onramp provider. Lists every
+   * BTC/EVM coin our two merchant wallets can actually receive, for our own
+   * coin-picker UI (PayGate's hosted picker can't be embedded/customized).
    */
-  async createDirectCryptoPayment(
-    orderId: string,
-    amount: number,
-    currency = 'USD',
-  ): Promise<{ paymentUrl: string; requestId: string }> {
-    if (!this.merchantWallet || !this.btcWallet) {
-      throw new BadRequestException(
-        'PayGate EVM/BTC merchant wallets are not configured',
-      );
+  async getCryptoCoinOptions(): Promise<CryptoCoinOption[]> {
+    const info = await this.getCryptoInfo();
+    const options: CryptoCoinOption[] = [];
+    const isCoinInfo = (v: unknown): v is PayGateCryptoCoinInfo =>
+      !!v && typeof v === 'object' && 'ticker' in (v as object);
+
+    if (this.btcWallet && isCoinInfo(info.btc)) {
+      options.push({ path: 'btc', network: null, ticker: 'btc', name: info.btc.coin, logo: info.btc.logo });
     }
 
-    const appUrl =
-      this.configService.get<string>('APP_URL') || 'http://localhost:3000';
+    if (this.merchantWallet) {
+      if (isCoinInfo(info.eth)) {
+        options.push({ path: 'eth', network: null, ticker: 'eth', name: info.eth.coin, logo: info.eth.logo });
+      }
+      for (const network of SUPPORTED_EVM_NETWORKS) {
+        const group = info[network];
+        if (!group || isCoinInfo(group)) continue;
+        for (const [ticker, coin] of Object.entries(group)) {
+          options.push({ path: `${network}/${ticker}`, network, ticker, name: coin.coin, logo: coin.logo });
+        }
+      }
+    }
 
-    const res = await axios.post<PayGateHostedCryptoResponse>(
-      `${this.apiUrl}/crypto/multi-hosted-wallet.php`,
-      {
-        evm: this.merchantWallet,
-        btc: this.btcWallet,
-        fiat_amount: amount,
-        fiat_currency: currency,
-        callback: `${appUrl}/api/webhooks/paygate?orderId=${encodeURIComponent(orderId)}`,
-      },
-      { headers: this.headers },
-    );
+    return options;
+  }
 
-    // Same pre-encoded-value caveat as wallet.php — see createPaymentRequest.
-    const paymentToken = decodeURIComponent(res.data.payment_token);
-    const ipnToken = decodeURIComponent(res.data.ipn_token);
+  /**
+   * Generates the actual on-chain deposit address for one specific coin the
+   * customer picked, plus how much of it to send. Unlike wallet.php/
+   * multi-hosted-wallet.php, this per-coin endpoint returns a real address
+   * directly rather than an obfuscated forwarding token.
+   */
+  async createCryptoAddressForCoin(
+    orderId: string,
+    coinPath: string,
+    amountUsd: number,
+  ): Promise<{ address: string; amountCoin: string; ipnToken: string }> {
+    const isBtc = coinPath === 'btc';
+    const wallet = isBtc ? this.btcWallet : this.merchantWallet;
+    if (!wallet) {
+      throw new BadRequestException('PayGate wallet is not configured for this coin');
+    }
 
-    return {
-      paymentUrl: `${this.checkoutUrl}/crypto/hosted.php?payment_token=${encodeURIComponent(paymentToken)}&add_fees=1`,
-      requestId: ipnToken,
-    };
+    const appUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3000';
+
+    const [walletRes, convertRes] = await Promise.all([
+      axios.get<PayGateWalletResponse>(`${this.apiUrl}/crypto/${coinPath}/wallet.php`, {
+        params: {
+          address: wallet,
+          callback: `${appUrl}/api/webhooks/paygate?orderId=${encodeURIComponent(orderId)}`,
+        },
+        headers: this.headers,
+      }),
+      axios.get<{ status: string; value_coin: string }>(`${this.apiUrl}/crypto/${coinPath}/convert.php`, {
+        params: { from: 'USD', value: amountUsd },
+        headers: this.headers,
+      }),
+    ]);
+
+    // Same pre-encoded-value caveat as the card-flow wallet.php — decoding
+    // defensively here is a safe no-op if this endpoint ever returns a
+    // plain (unencoded) address instead.
+    const address = decodeURIComponent(walletRes.data.address_in);
+    const ipnToken = decodeURIComponent(walletRes.data.ipn_token);
+
+    if (convertRes.data.status !== 'success') {
+      throw new BadRequestException('Could not price this order in the selected coin');
+    }
+
+    return { address, amountCoin: convertRes.data.value_coin, ipnToken };
   }
 
   /**

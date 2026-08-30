@@ -9,7 +9,12 @@ import {
   Request,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
-import { CheckoutDto, UpdateOrderStatusDto, UpdatePaymentStatusDto } from './dto/order.dto';
+import {
+  CheckoutDto,
+  UpdateOrderStatusDto,
+  UpdatePaymentStatusDto,
+  SelectCryptoCoinDto,
+} from './dto/order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 
@@ -21,6 +26,14 @@ export class OrdersController {
   async checkout(@Request() req: any, @Body() checkoutDto: CheckoutDto) {
     const userId = req.user?.id;
     return this.ordersService.createOrder(checkoutDto, userId);
+  }
+
+  // Public like /checkout — guest orders have no auth at all, and the
+  // order id (a UUID) is already the effective bearer token for the
+  // duration of the payment flow, same as the /webhooks/paygate status GET.
+  @Post(':id/crypto-payment')
+  async selectCryptoCoin(@Param('id') id: string, @Body() dto: SelectCryptoCoinDto) {
+    return this.ordersService.selectCryptoCoin(id, dto.coinPath);
   }
 
   @Get()

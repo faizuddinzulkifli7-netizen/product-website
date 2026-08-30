@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { CURRENCY_OPTIONS, DISPLAY_CURRENCY } from '@/contexts/CurrencyContext';
-import { CheckoutData } from '@/types';
+import { CheckoutData, CryptoCoinOption } from '@/types';
 import { api } from '@/lib/api';
 import Container from '@/components/layout/Container';
 import Input from '@/components/ui/Input';
@@ -12,7 +12,9 @@ import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import EmptyState from '@/components/ui/EmptyState';
+import Loading from '@/components/ui/Loading';
 import OrderSummary from '@/components/cart/OrderSummary';
+import CryptoPaymentFlow from '@/components/checkout/CryptoPaymentFlow';
 
 const countryOptions = [
   { value: 'Sweden', label: 'Sweden' },
@@ -27,31 +29,75 @@ const countryOptions = [
   { value: 'Serbia', label: 'Serbia' },
 ];
 
+const DEFAULT_FORM_DATA: CheckoutData = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  address: '',
+  city: '',
+  state: '',
+  zipCode: '',
+  country: 'Sweden',
+  paymentType: 'card',
+  currency: DISPLAY_CURRENCY,
+};
+
+// Keeps whatever the customer has typed so a refresh or an accidental
+// navigation away (e.g. bouncing off the payment page) doesn't force them
+// to redo the whole form.
+const DRAFT_STORAGE_KEY = 'checkoutFormDraft';
+const DRAFT_TTL_MS = 30 * 60 * 1000;
+
+function loadDraft(): CheckoutData | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!raw) return null;
+    const { data, savedAt } = JSON.parse(raw);
+    if (Date.now() - savedAt > DRAFT_TTL_MS) {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(data: CheckoutData) {
+  localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ data, savedAt: Date.now() }));
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_STORAGE_KEY);
+}
+
 export default function CheckoutPage() {
-  const { cart, getTotalPrice, clearCart } = useCart();
+  const { cart, loading: cartLoading, getTotalPrice } = useCart();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  const [formData, setFormData] = useState<CheckoutData>({
-    firstName: '',
-    lastName: '',
-    email: user?.email || '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: 'Sweden',
-    paymentType: 'card',
-    currency: DISPLAY_CURRENCY,
-  });
+
+  const [formData, setFormData] = useState<CheckoutData>(
+    () => loadDraft() || DEFAULT_FORM_DATA,
+  );
+  const [providerOptions, setProviderOptions] = useState<
+    { id: string; name: string; url: string }[] | null
+  >(null);
+  const [cryptoCheckout, setCryptoCheckout] = useState<
+    { orderId: string; coins: CryptoCoinOption[] } | null
+  >(null);
 
   useEffect(() => {
     if (user?.email) {
       setFormData(prev => ({ ...prev, email: user.email }));
     }
   }, [user]);
+
+  useEffect(() => {
+    saveDraft(formData);
+  }, [formData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
@@ -72,11 +118,21 @@ export default function CheckoutPage() {
       }
 
       const response = await api.checkout(formData, guestId);
+      clearDraft();
+      // Deliberately not clearing the cart here — PayGate has no browser
+      // return URL, so if the customer abandons or the payment fails,
+      // this is the only way they keep their cart instead of it vanishing.
 
-      if (response.paymentUrl) {
-        await clearCart();
-        // Send the customer to BTCPay's hosted invoice to pay; BTCPay redirects
-        // back to /checkout/success once the payment settles.
+      if (response.cryptoCoins && response.cryptoCoins.length > 0) {
+        // Our own coin-picker UI, replacing PayGate's hosted crypto page.
+        setCryptoCheckout({ orderId: response.order.id, coins: response.cryptoCoins });
+        setLoading(false);
+      } else if (response.providers && response.providers.length > 0) {
+        // A curated provider list (see backend) — shown instead of
+        // PayGate's own selector so we can leave specific providers out.
+        setProviderOptions(response.providers);
+        setLoading(false);
+      } else if (response.paymentUrl) {
         window.location.href = response.paymentUrl;
       }
     } catch (err: any) {
@@ -84,6 +140,46 @@ export default function CheckoutPage() {
       setLoading(false);
     }
   };
+
+  if (cryptoCheckout) {
+    return (
+      <Container maxWidth="2xl" className="py-12">
+        <CryptoPaymentFlow orderId={cryptoCheckout.orderId} coins={cryptoCheckout.coins} />
+      </Container>
+    );
+  }
+
+  if (providerOptions) {
+    return (
+      <Container maxWidth="2xl" className="py-12">
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Choose a Payment Provider</h1>
+          <p className="text-gray-600 mb-6">
+            Select how you&apos;d like to pay. You&apos;ll be taken straight to that provider.
+          </p>
+          <div className="space-y-3">
+            {providerOptions.map((provider) => (
+              <a
+                key={provider.id}
+                href={provider.url}
+                className="block w-full text-left rounded-lg border border-gray-300 p-4 hover:border-blue-600 hover:bg-blue-50 transition-colors font-medium text-gray-900"
+              >
+                {provider.name}
+              </a>
+            ))}
+          </div>
+        </div>
+      </Container>
+    );
+  }
+
+  if (cartLoading) {
+    return (
+      <Container className="py-12">
+        <Loading />
+      </Container>
+    );
+  }
 
   if (cart.items.length === 0) {
     return (

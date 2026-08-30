@@ -64,3 +64,10 @@ export class UpdatePaymentStatusDto {
   paymentStatus: string;
 }
 
+export class SelectCryptoCoinDto {
+  // e.g. 'btc' or 'polygon/usdc' — one of the `path` values returned by
+  // the crypto coin list in the checkout response.
+  @IsString()
+  coinPath: string;
+}
+

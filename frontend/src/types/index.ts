@@ -62,3 +62,11 @@ export interface AuthResponse {
   token: string;
 }
 
+export interface CryptoCoinOption {
+  path: string;
+  network: string | null;
+  ticker: string;
+  name: string;
+  logo: string;
+}
+

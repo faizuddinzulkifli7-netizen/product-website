@@ -1,4 +1,4 @@
-import { Product, Review, Cart, CheckoutData } from '@/types';
+import { Product, Review, Cart, CheckoutData, CryptoCoinOption } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -67,7 +67,12 @@ export const api = {
   checkout: (
     checkoutData: CheckoutData,
     guestId: string,
-  ): Promise<{ order: { id: string; orderNumber: string }; paymentUrl: string }> =>
+  ): Promise<{
+    order: { id: string; orderNumber: string };
+    paymentUrl?: string;
+    providers?: { id: string; name: string; url: string }[];
+    cryptoCoins?: CryptoCoinOption[];
+  }> =>
     request('/orders/checkout', {
       method: 'POST',
       body: JSON.stringify({
@@ -87,4 +92,18 @@ export const api = {
         guestId,
       }),
     }),
+
+  selectCryptoCoin: (
+    orderId: string,
+    coinPath: string,
+  ): Promise<{ address: string; amountCoin: string; coinPath: string }> =>
+    request(`/orders/${encodeURIComponent(orderId)}/crypto-payment`, {
+      method: 'POST',
+      body: JSON.stringify({ coinPath }),
+    }),
+
+  // Reuses PayGate's own webhook route — it independently re-verifies
+  // against PayGate before reporting paid, so it's safe to poll directly.
+  checkPaymentStatus: (orderId: string): Promise<{ received: boolean; processed?: boolean }> =>
+    request(`/webhooks/paygate?orderId=${encodeURIComponent(orderId)}`),
 };

@@ -12,7 +12,11 @@ import { Cart } from '../entities/cart.entity';
 import { Product } from '../entities/product.entity';
 import { CheckoutDto, UpdateOrderStatusDto, UpdatePaymentStatusDto } from './dto/order.dto';
 import { PAYMENT_GATEWAY } from '../payment/payment-gateway.interface';
-import type { PaymentGateway } from '../payment/payment-gateway.interface';
+import type {
+  PaymentGateway,
+  PaymentProviderOption,
+  CryptoCoinOption,
+} from '../payment/payment-gateway.interface';
 import { ProductsService } from '../products/products.service';
 import { PayGateService } from '../payment/paygate.service';
 import { CurrencyService } from '../currency/currency.service';
@@ -34,7 +38,15 @@ export class OrdersService {
     private currencyService: CurrencyService,
   ) {}
 
-  async createOrder(checkoutDto: CheckoutDto, userId?: string): Promise<{ order: Order; paymentUrl: string }> {
+  async createOrder(
+    checkoutDto: CheckoutDto,
+    userId?: string,
+  ): Promise<{
+    order: Order;
+    paymentUrl?: string;
+    providers?: PaymentProviderOption[];
+    cryptoCoins?: CryptoCoinOption[];
+  }> {
     const cart = await this.cartRepository.findOne({
       where: userId ? { userId } : { guestId: checkoutDto.guestId },
       relations: ['items', 'items.product'],
@@ -107,6 +119,21 @@ export class OrdersService {
 
     const savedOrder = await this.ordersRepository.save(order);
 
+    // Deliberately not clearing the cart anywhere in this method — the
+    // customer hasn't paid yet at this point. Clearing it here meant an
+    // abandoned or failed payment left them with an empty cart and no way
+    // to retry. It's cleared instead once handlePaymentWebhook confirms the
+    // payment actually succeeded.
+
+    // 'crypto': hand back the coin picker built from our own UI instead of
+    // creating a payment request now — which specific coin (and therefore
+    // which wallet.php call) isn't known until the customer picks one via
+    // selectCryptoCoin(), below.
+    if (checkoutDto.paymentType === 'crypto' && this.paymentGateway instanceof PayGateService) {
+      const cryptoCoins = await this.paymentGateway.getCryptoCoinOptions();
+      return { order: savedOrder, cryptoCoins };
+    }
+
     // All amounts above are computed and stored in USD, our source of
     // truth. Only the payment-gateway-facing amount is converted, so the
     // customer pays (and PayGate's provider list is chosen) in their
@@ -114,30 +141,40 @@ export class OrdersService {
     const currency = checkoutDto.currency || 'EUR';
     const gatewayAmount = await this.currencyService.convertFromUsd(total, currency);
 
-    // Create payment request. 'crypto' bypasses the card/onramp selector
-    // entirely for customers paying directly from their own BTC/EVM wallet.
-    const { paymentUrl, requestId } =
-      checkoutDto.paymentType === 'crypto' &&
-      this.paymentGateway instanceof PayGateService
-        ? await this.paymentGateway.createDirectCryptoPayment(
-            savedOrder.id,
-            gatewayAmount,
-            currency,
-          )
-        : await this.paymentGateway.createPaymentRequest(
-            savedOrder.id,
-            gatewayAmount,
-            currency,
-            checkoutDto.email,
-          );
+    const { paymentUrl, requestId, providers } = await this.paymentGateway.createPaymentRequest(
+      savedOrder.id,
+      gatewayAmount,
+      currency,
+      checkoutDto.email,
+    );
 
     savedOrder.paymentRequestId = requestId;
     await this.ordersRepository.save(savedOrder);
 
-    // Clear cart
-    await this.cartRepository.remove(cart);
+    return { order: savedOrder, paymentUrl, providers };
+  }
 
-    return { order: savedOrder, paymentUrl };
+  // Called once the customer picks a specific coin on our direct-crypto UI
+  // (deferred from createOrder — see the note there for why).
+  async selectCryptoCoin(
+    orderId: string,
+    coinPath: string,
+  ): Promise<{ address: string; amountCoin: string; coinPath: string }> {
+    if (!(this.paymentGateway instanceof PayGateService)) {
+      throw new BadRequestException('Direct crypto payment is not available');
+    }
+
+    const order = await this.findOne(orderId);
+    const { address, amountCoin, ipnToken } = await this.paymentGateway.createCryptoAddressForCoin(
+      order.id,
+      coinPath,
+      Number(order.total),
+    );
+
+    order.paymentRequestId = ipnToken;
+    await this.ordersRepository.save(order);
+
+    return { address, amountCoin, coinPath };
   }
 
   async findAll(userId?: string): Promise<Order[]> {
@@ -189,12 +226,13 @@ export class OrdersService {
   async updatePaymentStatus(id: string, updatePaymentStatusDto: UpdatePaymentStatusDto): Promise<Order> {
     const order = await this.findOne(id);
     order.paymentStatus = updatePaymentStatusDto.paymentStatus as PaymentStatus;
-    
+
     if (order.paymentStatus === PaymentStatus.PAID) {
       // Update stock levels
       for (const item of order.items) {
         await this.productsService.updateStock(item.productId, item.quantity);
       }
+      await this.clearCustomerCart(order);
     }
 
     return this.ordersRepository.save(order);
@@ -202,21 +240,35 @@ export class OrdersService {
 
   async handlePaymentWebhook(orderId: string, transactionId: string, status: string): Promise<Order> {
     const order = await this.findOne(orderId);
-    
+
     if (status === 'paid' || status === 'completed') {
       order.paymentStatus = PaymentStatus.PAID;
       order.paymentTransactionId = transactionId;
       order.status = OrderStatus.PENDING;
-      
+
       // Update stock levels
       for (const item of order.items) {
         await this.productsService.updateStock(item.productId, item.quantity);
       }
+
+      await this.clearCustomerCart(order);
     } else if (status === 'failed' || status === 'cancelled') {
       order.paymentStatus = PaymentStatus.FAILED;
     }
 
     return this.ordersRepository.save(order);
+  }
+
+  // Only called once payment is actually confirmed — see the note in
+  // createOrder for why this doesn't happen any earlier.
+  private async clearCustomerCart(order: Order): Promise<void> {
+    const cart = await this.cartRepository.findOne({
+      where: order.userId ? { userId: order.userId } : { guestId: order.guestId },
+      relations: ['items'],
+    });
+    if (cart) {
+      await this.cartRepository.remove(cart);
+    }
   }
 }
 
