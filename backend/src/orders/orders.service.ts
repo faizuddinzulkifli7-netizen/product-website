@@ -92,7 +92,7 @@ export class OrdersService {
       orderItems.push(orderItem);
     }
 
-    // Flat $10 shipping, waived only when every item in the cart is flagged free-shipping.
+    // Flat €10 shipping, waived only when every item in the cart is flagged free-shipping.
     const shipping = allFreeShipping ? 0 : 10;
     const total = subtotal + shipping;
 
@@ -134,12 +134,13 @@ export class OrdersService {
       return { order: savedOrder, cryptoCoins };
     }
 
-    // All amounts above are computed and stored in USD, our source of
-    // truth. Only the payment-gateway-facing amount is converted, so the
-    // customer pays (and PayGate's provider list is chosen) in their
+    // All amounts above are computed and stored in EUR, our base currency —
+    // set directly by the admin, never derived from a live rate, so it
+    // can't drift. Only the payment-gateway-facing amount is converted, so
+    // the customer pays (and PayGate's provider list is chosen) in their
     // selected currency without touching stored order totals.
     const currency = checkoutDto.currency || 'EUR';
-    const gatewayAmount = await this.currencyService.convertFromUsd(total, currency);
+    const gatewayAmount = await this.currencyService.convertFromEur(total, currency);
 
     const { paymentUrl, requestId, providers } = await this.paymentGateway.createPaymentRequest(
       savedOrder.id,
@@ -165,6 +166,7 @@ export class OrdersService {
     }
 
     const order = await this.findOne(orderId);
+    // order.total is stored in EUR, our base currency.
     const { address, amountCoin, ipnToken } = await this.paymentGateway.createCryptoAddressForCoin(
       order.id,
       coinPath,

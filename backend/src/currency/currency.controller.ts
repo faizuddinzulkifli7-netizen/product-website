@@ -9,7 +9,7 @@ const DEFAULT_CURRENCIES = ['EUR', 'SEK', 'NOK', 'DKK', 'GBP'];
 export class CurrencyController {
   constructor(private readonly currencyService: CurrencyService) {}
 
-  // Returns { [currencyCode]: usdValueOfOneUnit }, e.g. { EUR: 1.167, SEK: 0.106 }.
+  // Returns { [currencyCode]: eurValueOfOneUnit }, e.g. { EUR: 1, SEK: 0.0906 }.
   @Get('rates')
   async getRates(@Query('currencies') currencies?: string) {
     const codes = currencies

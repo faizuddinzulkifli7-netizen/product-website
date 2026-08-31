@@ -17,6 +17,7 @@ const navigation: NavItem[] = [
   { name: 'Orders', href: '/orders', icon: '🛒' },
   { name: 'Users', href: '/users', icon: '👥' },
   { name: 'Reviews', href: '/reviews', icon: '⭐' },
+  { name: 'FAQs', href: '/faqs', icon: '❓' },
   { name: 'Activity Logs', href: '/logs', icon: '📝' },
 ];
 

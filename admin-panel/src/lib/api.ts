@@ -6,6 +6,7 @@ import {
   ActivityLog,
   DashboardMetrics,
   AuthResponse,
+  Faq,
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
@@ -192,4 +193,21 @@ export const adminApi = {
   // Activity logs
   getActivityLogs: (limit: number = 100): Promise<ActivityLog[]> =>
     request(`/admin/logs?limit=${limit}`),
+
+  // FAQs
+  getFaqs: (): Promise<Faq[]> => request('/faqs?includeInactive=true'),
+
+  createFaq: (faqData: Omit<Faq, 'id' | 'createdAt' | 'updatedAt'>): Promise<Faq> =>
+    request('/faqs', {
+      method: 'POST',
+      body: JSON.stringify(faqData),
+    }),
+
+  updateFaq: (id: string, updates: Partial<Faq>): Promise<Faq> =>
+    request(`/faqs/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    }),
+
+  deleteFaq: (id: string): Promise<void> => request(`/faqs/${id}`, { method: 'DELETE' }),
 };

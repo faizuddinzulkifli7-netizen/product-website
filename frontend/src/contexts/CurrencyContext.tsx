@@ -4,7 +4,10 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
-// The site's default display currency — most customers are European.
+// The backend's base currency — product prices and order totals are
+// stored in EUR directly, set by the admin, never derived from a live
+// rate. Displaying in EUR (the default everywhere on this storefront)
+// needs no conversion at all, so it can't drift just from being shown.
 export const DISPLAY_CURRENCY = 'EUR';
 
 // RSD is intentionally excluded — PayGate can't settle in it ("Coin not
@@ -28,11 +31,13 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 };
 
 interface CurrencyContextType {
-  // USD value of 1 unit of each currency, e.g. { EUR: 1.167, SEK: 0.106 }.
+  // EUR value of 1 unit of each currency, e.g. { EUR: 1, SEK: 0.0906 }.
+  // Only needed for the checkout currency selector — never for the
+  // default EUR price display.
   rates: Record<string, number>;
   ready: boolean;
-  formatPrice: (usdAmount: number, currency?: string) => string;
-  convert: (usdAmount: number, currency: string) => number;
+  formatPrice: (eurAmount: number, currency?: string) => string;
+  convert: (eurAmount: number, currency: string) => number;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
@@ -53,20 +58,25 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
       });
   }, []);
 
-  const convert = (usdAmount: number, currency: string): number => {
-    if (currency === 'USD') return usdAmount;
+  const convert = (eurAmount: number, currency: string): number => {
+    if (currency === 'EUR') return eurAmount;
     const rate = rates[currency];
-    if (!rate) return usdAmount;
-    return usdAmount / rate;
+    if (!rate) return eurAmount;
+    return eurAmount / rate;
   };
 
-  const formatPrice = (usdAmount: number, currency: string = DISPLAY_CURRENCY): string => {
-    // Before rates load, or if a rate is missing, fall back to USD rather
-    // than mislabeling a raw dollar figure with the wrong symbol.
-    if (currency !== 'USD' && (!ready || !rates[currency])) {
-      return `$${usdAmount.toFixed(2)}`;
+  const formatPrice = (eurAmount: number, currency: string = DISPLAY_CURRENCY): string => {
+    // EUR is the base currency itself — no rate lookup needed, so this
+    // path (used for every default price on the site) can never drift.
+    if (currency === 'EUR') {
+      return `€${eurAmount.toFixed(2)}`;
     }
-    const amount = convert(usdAmount, currency);
+    // Before rates load, or if a rate is missing, fall back to EUR rather
+    // than mislabeling a euro figure with the wrong symbol.
+    if (!ready || !rates[currency]) {
+      return `€${eurAmount.toFixed(2)}`;
+    }
+    const amount = convert(eurAmount, currency);
     const symbol = CURRENCY_SYMBOLS[currency] || `${currency} `;
     return `${symbol}${amount.toFixed(2)}`;
   };

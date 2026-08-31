@@ -22,7 +22,10 @@ export class CurrencyService {
   private readonly logger = new Logger(CurrencyService.name);
   private readonly cache = new Map<string, CachedRate>();
 
-  // Returns USD value of 1 unit of `currency` (e.g. EUR -> ~1.17).
+  // Low-level primitive: USD value of 1 unit of `currency`. PayGate's own
+  // convert.php is USD-denominated at the source (there's no way to ask it
+  // for EUR-relative rates directly), so every EUR-relative rate below is
+  // built by composing two of these calls.
   async getUsdRate(currency: string): Promise<number> {
     const code = currency.toUpperCase();
     if (code === 'USD') {
@@ -55,20 +58,37 @@ export class CurrencyService {
     }
   }
 
+  // EUR value of 1 unit of `currency` — the base-currency rate everything
+  // else in the app is built on. EUR itself is always exactly 1 with no
+  // network call, which is what keeps EUR-denominated prices from ever
+  // drifting just by being displayed or resaved.
+  async getEurRate(currency: string): Promise<number> {
+    const code = currency.toUpperCase();
+    if (code === 'EUR') {
+      return 1;
+    }
+    const [usdX, usdEur] = await Promise.all([this.getUsdRate(code), this.getUsdRate('EUR')]);
+    return usdX / usdEur;
+  }
+
+  // Returns { [currencyCode]: eurValueOfOneUnit } for every requested code.
   async getRates(currencies: string[]): Promise<Record<string, number>> {
     const uniqueCodes = [...new Set(currencies.map((c) => c.toUpperCase()))];
     const entries = await Promise.all(
-      uniqueCodes.map(async (code) => [code, await this.getUsdRate(code)] as const),
+      uniqueCodes.map(async (code) => [code, await this.getEurRate(code)] as const),
     );
     return Object.fromEntries(entries);
   }
 
-  async convertFromUsd(usdAmount: number, currency: string): Promise<number> {
+  // Converts a EUR amount (our stored base currency) into `currency` —
+  // used only at the payment-gateway boundary, when a customer has chosen
+  // to pay in something other than EUR.
+  async convertFromEur(eurAmount: number, currency: string): Promise<number> {
     const code = currency.toUpperCase();
-    if (code === 'USD') {
-      return usdAmount;
+    if (code === 'EUR') {
+      return eurAmount;
     }
-    const rate = await this.getUsdRate(code);
-    return usdAmount / rate;
+    const rate = await this.getEurRate(code);
+    return eurAmount / rate;
   }
 }

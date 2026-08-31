@@ -16,6 +16,7 @@ import { PaymentModule } from './payment/payment.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { CurrencyModule } from './currency/currency.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { FaqModule } from './faq/faq.module';
 import * as entities from './entities';
 
 @Module({
@@ -54,6 +55,7 @@ import * as entities from './entities';
     WebhooksModule,
     CurrencyModule,
     UploadsModule,
+    FaqModule,
   ],
   controllers: [AppController],
   providers: [

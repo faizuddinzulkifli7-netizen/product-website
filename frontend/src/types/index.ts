@@ -70,3 +70,10 @@ export interface CryptoCoinOption {
   logo: string;
 }
 
+export interface Faq {
+  id: string;
+  question: string;
+  answer: string;
+  order: number;
+}
+

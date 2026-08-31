@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Product } from '@/types';
 import { Input, Select, Checkbox, Button } from '@/components/ui';
 import { adminApi } from '@/lib/api';
-import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface ProductFormProps {
   product?: Product | null;
@@ -12,7 +11,6 @@ interface ProductFormProps {
 }
 
 export default function ProductForm({ product, onSubmit, onCancel, loading }: ProductFormProps) {
-  const { ready: currencyReady, usdToEur, eurToUsd } = useCurrency();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -39,9 +37,9 @@ export default function ProductForm({ product, onSubmit, onCancel, loading }: Pr
         name: product.name,
         description: product.description,
         shortDescription: product.shortDescription,
-        // product.price is stored in USD; the form edits in EUR to match
-        // every other price display in the admin panel.
-        price: Math.round(usdToEur(product.price) * 100) / 100,
+        // product.price is stored in EUR directly — no conversion, so it
+        // can never drift just from opening and resaving this form.
+        price: product.price,
         category: product.category,
         inStock: product.inStock,
         stockLevel: product.stockLevel || 0,
@@ -54,9 +52,7 @@ export default function ProductForm({ product, onSubmit, onCancel, loading }: Pr
         warnings: product.extendedInfo?.warnings?.join('\n') || '',
       });
     }
-    // Re-run once rates finish loading, in case the modal opened before
-    // the conversion factor was available.
-  }, [product, currencyReady]);
+  }, [product]);
 
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -82,9 +78,6 @@ export default function ProductForm({ product, onSubmit, onCancel, loading }: Pr
     e.preventDefault();
     await onSubmit({
       ...formData,
-      // Convert the entered EUR value back to USD, which is what the
-      // backend stores and what payment/checkout logic is built around.
-      price: Math.round(eurToUsd(formData.price) * 100) / 100,
       extendedInfo: {
         specifications: formData.specifications.split('\n').filter((s) => s.trim()),
         usage: formData.usage,

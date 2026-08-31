@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole } from '../entities/user.entity';
 import { Product } from '../entities/product.entity';
+import { Faq } from '../entities/faq.entity';
 
 export async function seedDatabase(dataSource: DataSource) {
   const userRepository = dataSource.getRepository(User);
@@ -25,9 +26,9 @@ export async function seedDatabase(dataSource: DataSource) {
     console.log('✅ Default admin user created (admin@example.com / admin123)');
   }
 
-  // Product catalog. Prices below are PLACEHOLDERS ($TBD) — update via the
-  // admin panel before launch. Re-running the seed replaces the catalog with
-  // this list, so it stays in sync with whatever ships here.
+  // Product catalog. Prices below are PLACEHOLDERS (EUR, TBD) — update via
+  // the admin panel before launch. Only used to fill in products that don't
+  // already exist; never overwrites a price an admin has already set.
   const products = [
     {
       name: 'Retatrutide 1mg Research Kit',
@@ -220,5 +221,81 @@ export async function seedDatabase(dataSource: DataSource) {
     }
   }
   console.log('✅ Product catalog synced (placeholder prices on new items — update before launch)');
+
+  // Seed the FAQ page's original hardcoded content into the database, now
+  // that it's admin-editable. Only inserts what's missing (by question
+  // text), so this never overwrites anything an admin has already edited.
+  const faqRepository = dataSource.getRepository(Faq);
+  const faqs = [
+    {
+      question: 'What are peptides?',
+      answer:
+        'Peptides are short chains of amino acids that play various roles in biological processes. They are used in research and have potential applications in health and wellness.',
+      order: 0,
+    },
+    {
+      question: 'Are your products safe?',
+      answer:
+        'All our products are manufactured in certified facilities and undergo rigorous quality control. However, our products are for research purposes only and not intended for human consumption unless approved by relevant authorities.',
+      order: 1,
+    },
+    {
+      question: 'How do I store peptides?',
+      answer:
+        'Most peptides should be stored in a freezer at -20°C. Always refer to the specific storage instructions provided with each product. Protect from light and moisture.',
+      order: 2,
+    },
+    {
+      question: 'What payment methods do you accept?',
+      answer:
+        'We accept payments through our secure payment gateway, which supports card payments (including local options like Klarna) as well as direct cryptocurrency payments.',
+      order: 3,
+    },
+    {
+      question: 'How long does shipping take?',
+      answer:
+        'Shipping times vary depending on your location. Typically, orders are processed within 1-2 business days, and shipping takes 3-7 business days for domestic orders.',
+      order: 4,
+    },
+    {
+      question: 'Can I return or refund my order?',
+      answer:
+        'We accept returns within 30 days of purchase for unopened products in their original packaging. Please contact our support team to initiate a return.',
+      order: 5,
+    },
+    {
+      question: 'Do you ship internationally?',
+      answer:
+        'Yes, we ship to many countries worldwide. Shipping costs and delivery times vary by location. Please check during checkout for available shipping options to your country.',
+      order: 6,
+    },
+    {
+      question: 'Is my personal information secure?',
+      answer:
+        'Yes, we take data security seriously. All personal information is encrypted and stored securely. We never share your information with third parties except as necessary for order fulfillment.',
+      order: 7,
+    },
+    {
+      question: 'Do I need an account to make a purchase?',
+      answer:
+        'No, you can make purchases as a guest. However, creating an account allows you to track orders, save your information for faster checkout, and access order history.',
+      order: 8,
+    },
+    {
+      question: 'How do I track my order?',
+      answer:
+        "Once your order ships, you will receive a tracking number via email. You can use this number to track your package through the shipping carrier's website.",
+      order: 9,
+    },
+  ];
+
+  for (const faqData of faqs) {
+    const existing = await faqRepository.findOne({ where: { question: faqData.question } });
+    if (!existing) {
+      const faq = faqRepository.create(faqData);
+      await faqRepository.save(faq);
+    }
+  }
+  console.log('✅ FAQ content synced');
 }
 

@@ -106,3 +106,13 @@ export interface AuthResponse {
   token: string;
 }
 
+export interface Faq {
+  id: string;
+  question: string;
+  answer: string;
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+

@@ -52,7 +52,16 @@ interface PayGateProviderStatusResponse {
 // (pay.php) has no way to hide specific providers from it, so instead we
 // build our own curated list of single-provider links (process-payment.php
 // with an explicit &provider=), which does skip straight past the selector.
-const EXCLUDED_PROVIDER_IDS = ['coinbase', 'revolut'];
+const EXCLUDED_PROVIDER_IDS = [
+  'coinbase',
+  'revolut',
+  'transak',
+  'alchemypay',
+  'binance',
+  'blockchaincom',
+  'particle',
+  'sardine',
+];
 
 // Per PayGate's docs, these providers are hard-locked to one settlement
 // currency regardless of amount — offering them to a customer paying in
@@ -170,7 +179,7 @@ export class PayGateService implements PaymentGateway {
   async createPaymentRequest(
     orderId: string,
     amount: number,
-    currency = 'USD',
+    currency = 'EUR',
     customerEmail?: string,
   ): Promise<{ paymentUrl: string; requestId: string; providers?: PaymentProviderOption[] }> {
     if (!this.merchantWallet) {
@@ -279,7 +288,7 @@ export class PayGateService implements PaymentGateway {
   async createCryptoAddressForCoin(
     orderId: string,
     coinPath: string,
-    amountUsd: number,
+    amountEur: number,
   ): Promise<{ address: string; amountCoin: string; ipnToken: string }> {
     const isBtc = coinPath === 'btc';
     const wallet = isBtc ? this.btcWallet : this.merchantWallet;
@@ -297,8 +306,9 @@ export class PayGateService implements PaymentGateway {
         },
         headers: this.headers,
       }),
+      // amountEur is the order's stored total, which is EUR (our base currency).
       axios.get<{ status: string; value_coin: string }>(`${this.apiUrl}/crypto/${coinPath}/convert.php`, {
-        params: { from: 'USD', value: amountUsd },
+        params: { from: 'EUR', value: amountEur },
         headers: this.headers,
       }),
     ]);
